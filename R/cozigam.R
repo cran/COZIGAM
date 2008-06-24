@@ -115,7 +115,7 @@ COZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
                 w.c <- c(weights1[good], weights2[good])
                 X.c <- rbind(G1$X[good,], delta*G2$X[good,])
 
-                mgfit <- magic(y.c, X.c, G1$sp, G1$S, G1$off, G1$rank, C=G1$C, w=w.c, gcv=FALSE)
+                mgfit <- magic(y=y.c, X=X.c, sp=G1$sp, S=G1$S, off=G1$off, rank=G1$rank, C=G1$C, w=w.c, gcv=FALSE)
 
                 b.old <- b
                 b <- mgfit$b
@@ -334,7 +334,7 @@ COZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
                 w.c <- c(weights1[good], weights2[good])
                 X.c <- rbind(G1$X[good,], delta*G2$X[good,])
 
-                mgfit <- magic(y.c, X.c, G1$sp, G1$S, G1$off, G1$rank, C=G1$C, w=w.c, gcv=FALSE)
+                mgfit <- magic(y=y.c, X=X.c, sp=G1$sp, S=G1$S, off=G1$off, rank=G1$rank, C=G1$C, w=w.c, gcv=TRUE)
 
                 b.old <- b
                 b <- mgfit$b
@@ -366,14 +366,14 @@ COZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
         }
 
         names(alpha) <- names(delta) <- NULL
-        theta <- list(alpha=alpha, delta=delta, beta=b)
+	  theta <- list(alpha=alpha, delta=delta, beta=b)
         if(rep.out==maxiter) converged <- FALSE
             else converged <- TRUE
 
         ## observed information...
         n.smooth <- length(G1$smooth)
         np <- length(b)
-        Lambda <- matrix(0, np, np)
+	  Lambda <- matrix(0, np, np)
         Lam <- list(); n.S <- numeric(n.smooth)
         for(k in 1:n.smooth) {
             n.S[k] <- length(G1$smooth[[k]]$S)
@@ -471,7 +471,7 @@ COZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
 
 # plot.cozigam(COZIGAM)
 
-plot.cozigam <- function(x, plot.2d = "contour", too.far = 0, 
+plot.cozigam <- function(x, plot.2d = "contour", too.far = 0.05, 
     n.1d = 100, n.2d = 30, theta = 30, phi = 30, select = NULL, image.col = "topo", 
     persp.col = "lightblue", contour.col = "red", n.Col = 100, shade.ci = FALSE,
     shade.col = "gray80", Rug = TRUE, ...)
@@ -524,7 +524,7 @@ plot.cozigam <- function(x, plot.2d = "contour", too.far = 0,
                 }
                 else {
                     plot(fit~xx, type="l", col="black", xlab=colnames(pr), 
-                        ylim=c(min(ci.lower),max(ci.upper)), ...)
+                        ylim=c(min(ci.lower),max(ci.upper)) )
                     lines(ci.upper~xx, type="l", col="black", lty=2)
                     lines(ci.lower~xx, type="l", col="black", lty=2)
                     if(Rug) {
@@ -551,10 +551,8 @@ plot.cozigam <- function(x, plot.2d = "contour", too.far = 0,
                 }
                 X.pred <- PredictMat(G$smooth[[k]], pr)
                 fit <- matrix(X.pred%*%b[first:last], n.2d, n.2d)
-                if(too.far>0) {
-                      exclude <- exclude.too.far(gx, gz, raw$xx, raw$zz, dist = too.far)
-                      fit[exclude] <- NA
-                }
+                exclude <- exclude.too.far(gx, gz, raw$xx, raw$zz, dist = too.far)
+                fit[exclude] <- NA
                 if(plot.2d=="contour") {
                       if(is.null(image.col)) contour(xs, zs, fit, col=contour.col)
                       else {
@@ -581,8 +579,7 @@ plot.cozigam <- function(x, plot.2d = "contour", too.far = 0,
                       }
                 }
                 else if(plot.2d=="persp") 
-                      persp(xs, zs, fit, col=persp.col, theta=theta, phi=phi, xlab = G$smooth[[k]]$term[1],
-                          ylab = G$smooth[[k]]$term[2], ...)
+                      persp(xs, zs, fit, col=persp.col, theta=theta, phi=phi, ...)
                 else stop("2-dim plot unavailable")
           }   
 	    else warning("dim>=3 cannot be visualized")
@@ -688,7 +685,7 @@ predict.cozigam <- function(object, newdata, type="link", se.fit=FALSE, ...)
 f0 <- function(x) 0.2*x^11*(10*(1-x))^6+10*(10*x)^3*(1-x)^10
 f1 <- function(x) sin(pi*x)
 
-testfn <- function(x, z, sx=0.3, sz=0.4) 
+test <- function(x, z, sx=0.3, sz=0.4) 
 { (pi**sx*sz)*(1.2*exp(-(x-0.2)^2/sx^2-(z-0.3)^2/sz^2)+
   0.8*exp(-(x-0.7)^2/sx^2-(z-0.8)^2/sz^2))
 

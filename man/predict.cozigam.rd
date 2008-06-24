@@ -1,51 +1,51 @@
 \name{predict.cozigam}
 \alias{predict.cozigam}
-\title{Prediction from a fitted COZIGAM}
+\title{Prediction from fitted COZIGAM}
 \description{
-   Predict from a COZIGAM  fitted by the \code{cozigam} function, 
-   given a new set of covariate values, if supplied, or 
-   the original set of covariate values used for the model fit. 
-   The standard errors of the point predictors are also computed. 
+   Takes a fitted \code{cozigam} object produced by \code{cozigam()} and 
+   produces predictions given a new set of values for the model covariates or 
+   the original values used for the model fit. Predictions can be accompanied 
+   by standard errors, based on the distribution of the model coefficients 
+   obtained by Louis' method.
 }
 \usage{
 \method{predict}{cozigam}(object, newdata, type="link", se.fit=FALSE, ...)
 }
 \arguments{
-   \item{object}{A fitted \code{cozigam} object as produced by the \code{cozigam} function.}
-   \item{newdata}{A data frame containing the values of the model covariates at which 
+   \item{object}{a fitted \code{cozigam} object as produced by \code{cozigam()}.}
+   \item{newdata}{a data frame containing the values of the model covariates at which 
    predictions are required. If this is not provided then predictions corresponding to 
    the original data are returned. 
    If \code{newdata} is provided then it must contain all the variables needed for prediction.}
-   \item{type}{When this has the value \code{"link"} (default) the linear predictor (possibly 
+   \item{type}{when this has the value \code{"link"} (default) the linear predictor (possibly 
    with associated standard errors) is returned. 
    When \code{type="terms"} each component of the linear predictor is returned seperately (possibly 
    with standard errors): this excludes any intercept. 
    When \code{type="response"} predictions on the scale of the response are returned (possibly 
    with approximate standard errors).}
-   \item{se.fit}{Logical. If \code{TRUE} (not default), the standard errors are returned.}
-   \item{...}{Other arguments.}
+   \item{se.fit}{logical. If \code{TRUE} (not default), standard error estimates are returned 
+   for each prediction.}
+   \item{...}{other arguments.}
 }
 \details{
 The standard errors produced by \code{predict.cozigam()} are based on the covariance matrix of 
 the parameters obtained by Louis' method in the fitted \code{gam} object.
 }
 \value{
-If \code{se.fit} is \code{TRUE} then a three-item list is returned with items (both arrays) \code{fit}, 
-\code{se.fit} containing the point predictors and associated standard error estimates and \code{p} 
-containing the corresponding zero-inflation rates, 
-otherwise a two-item list without the array of standard error estimates is returned. 
+If \code{se.fit} is \code{TRUE} then a 3 item list is returned with items (both arrays) \code{fit}, 
+\code{se.fit} containing predictions and associated standard error estimates and \code{p} 
+containing predictions of associated zero-inflation rates, 
+otherwise a 2 item list without the array of standard error estimated is returned. 
 The dimensions of the returned arrays depends on whether \code{type} is \code{"terms"} or not: 
-if it is then the array is 2-dimensional with each term in the linear predictor included separately, 
-otherwise the array is 1-dimensional and contains the linear predictor/predicted values (or 
-corresponding standard errors). The linear predictor returned termwise excludes the intercept.
+if it is then the array is 2 dimensional with each term in the linear predictor separate, 
+otherwise the array is 1 dimensional and contains the linear predictor/predicted values (or 
+corresponding s.e.s). The linear predictor returned termwise will not include the intercept.
 }
 \author{
 Hai Liu and Kung-Sik Chan
 }
 \references{
-Liu, H and Chan, K.S. (2008) Constrained Generalized Additive Model with Zero-Inflated Data. Technical Report, 
-Department of Statisics and Actuarial Science, The Unversity of Iowa. 
-\url{http://www.stat.uiowa.edu/techrep/tr388.pdf}  
+Liu, H and Chan, K.S. (2008) Constrained Generalized Additive Model with Zero-Inflated Data. 
 
 Louis, T. A. (1982) Finding the Observed Information Matrix When Using EM Algorithm. J. R. Statist. Soc. B, 44, 226-233
 }
@@ -59,7 +59,7 @@ x1 <- runif(n, 0, 1)
 x2 <- runif(n, 0, 1)
 x3 <- runif(n, 0, 1)
 
-f <- testfn(x1, x2)*4-mean(testfn(x1, x2)*4) + f0(x3)/2-mean(f0(x3)/2)
+f <- test(x1, x2)*4-mean(test(x1, x2)*4) + f0(x3)/2-mean(f0(x3)/2)
 sig <- 0.5
 mu0 <- f + 3
 y <- mu0 + rnorm(n, 0, sig)
