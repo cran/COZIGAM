@@ -1,13 +1,12 @@
 \name{COZIGAM.cts}
 \alias{COZIGAM.cts}
-\alias{COZIGAM.dis}
 \title{Fitting Constrained Zero-Inflated Generalized Additive Models with
 Continuous Response}
 \description{
 \code{COZIGAM.cts} fits a COZIGAM with continuous exponential family 
 responses. 
 
-\code{COZIGAM.dis} fits a COZIGAM with discrete exponential family 
+\code{\link{COZIGAM.dis}} fits a COZIGAM with discrete exponential family 
 responses. One of the two funcions is called from \code{\link{cozigam}} 
 automatically depending on the distribution family used. 
 }
