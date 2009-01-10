@@ -9,11 +9,8 @@ This is the default print statement for a COZIGAM object.
 Hai Liu and Kung-Sik Chan
 }
 
-\references{
-Liu, H and Chan, K.S. (2008) Constrained Generalized Additive Model with Zero-Inflated Data. 
-}
 \seealso{
-   \code{\link{cozigam}},\code{\link{summary.cozigam}}
+   \code{\link{cozigam}}, \code{\link{summary.cozigam}}
 }
 \keyword{smooth} \keyword{models} \keyword{regression}
 

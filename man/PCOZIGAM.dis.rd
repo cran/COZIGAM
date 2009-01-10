@@ -1,18 +1,18 @@
-\name{COZIGAM.dis}
-\alias{COZIGAM.dis}
-\title{Fitting Component-Specific-Proportionally Constrained 
-Zero-Inflated Generalized Additive Models with Discrete Responses}
+\name{PCOZIGAM.dis}
+\alias{PCOZIGAM.dis}
+\title{Fitting Proportionally Constrained Zero-Inflated Generalized Additive Models with
+Discrete Responses}
 \description{
-\code{COZIGAM.dis} fits a COZIGAM with component-specific-proportional constraint 
-for discrete zero-inflated exponential family
+\code{PCOZIGAM.dis} fits a COZIGAM with proportional constraint for discrete zero-inflated exponential family
 responses, e.g. Poisson and binomial distributions. If the regular exponential
 family admits 0 as a possible realization with positive probability, the 
 EM algorithm is used in the estimation procedure.
 
-\code{\link{COZIGAM.cts}} fits a COZIGAM with continuous zero-inflated exponential family
+\code{\link{PCOZIGAM.cts}} fits a COZIGAM with proportional constraint 
+for continuous zero-inflated exponential family
 responses. One of the two funcions is called from \code{\link{cozigam}}
 automatically depending on the distribution family if
-the argument \code{constraint="component"}.
+the argument \code{constraint="proportional"}.
 }
 \author{
 Hai Liu and Kung-Sik Chan

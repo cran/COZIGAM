@@ -20,13 +20,13 @@
    \item{x}{a \code{summary.cozigam} object produced by 
    \code{summary.cozigam()}.}
    \item{digits}{the number of significant digits to use when printing.}
-   \item{signif.stars}{logical. If \code{TRUE}, 'significance stars' 
+   \item{signif.stars}{logical. If \code{TRUE}, ``significance stars" 
    are printed for each coefficient.}
    \item{...}{other arguments.}
 }
 \details{
 \code{print.summary.cozigam} tries to be smart about formatting the coefficients, standard errors, etc.
-and additionally gives 'significance stars' if signif.stars is \code{TRUE}.
+and additionally gives ``significance stars" if signif.stars is \code{TRUE}.
 }
 \value{
 \code{summary.cozigam} produces a list of summary information 
@@ -69,28 +69,34 @@ for a fitted \code{cozigam} object.
 Hai Liu and Kung-Sik Chan
 }
 \seealso{
-   \code{\link{cozigam}},\code{\link{predict.cozigam}}
+   \code{\link{cozigam}}, \code{\link{predict.cozigam}}
 }
 \examples{
-set.seed(11)
+set.seed(1)
 n <- 600
 x1 <- runif(n, 0, 1)
 x2 <- runif(n, 0, 1)
 x3 <- runif(n, 0, 1)
 
-f <- test(x1, x2)*4-mean(test(x1, x2)*4) + f0(x3)/2-mean(f0(x3)/2)
-sig <- 0.5
-mu0 <- f + 3
-y <- mu0 + rnorm(n, 0, sig)
+f <- test(x1, x2)*2 + f0(x3)/5
+eta0 <- f/1.1
+mu0 <- exp(eta0)  
 
-alpha0 <- -2.2
-delta0 <- 1.2
-p0 <- .Call("logit_linkinv", alpha0 + delta0 * mu0, PACKAGE = "stats")
+eta.p10 <- (test(x1,x2) - mean(test(x1,x2)))*2/1.1
+eta.p20 <- (f0(x3) - mean(f0(x3)))/5/1.1
+
+alpha0 <- 0.5
+delta10 <- 1
+delta20 <- 0
+eta.p0 <- delta10*eta.p10 + delta20*eta.p20 
+p0 <- .Call("logit_linkinv", alpha0 + eta.p0, PACKAGE = "stats")
+
 z <- rbinom(rep(1,n), 1, p0)
-y[z==0] <- 0
+y <- rpois(rep(1,n), mu0)
+y[z==0] <- 0; rm(z)
 
-res <- cozigam(y~s(x1,x2)+s(x3), conv.crit.out = 1e-4, family = gaussian)
-
+res <- cozigam(y~s(x1,x2)+s(x3), constraint="component", zero.delta=c(NA, 0), family=poisson)
 summary(res)
+
 }
 \keyword{models} \keyword{smooth} \keyword{regression}

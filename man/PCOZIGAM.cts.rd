@@ -1,15 +1,15 @@
-\name{COZIGAM.cts}
-\alias{COZIGAM.cts}
-\title{Fitting Component-Specific-Proportionally Constrained 
-Zero-Inflated Generalized Additive Models with Continuous Responses}
+\name{PCOZIGAM.cts}
+\alias{PCOZIGAM.cts}
+\title{Fitting Proportionally Constrained Zero-Inflated Generalized Additive Models with
+Continuous Responses}
 \description{
-\code{COZIGAM.cts} fits a COZIGAM with component-specific-proportional constraint 
-for continuous exponential family responses. 
+\code{PCOZIGAM.cts} fits a COZIGAM with proportional constraint for continuous exponential family 
+responses. 
 
-\code{\link{COZIGAM.dis}} fits a COZIGAM with discrete exponential family 
+\code{\link{PCOZIGAM.dis}} fits a COZIGAM with proportional constraint for discrete exponential family 
 responses. One of the two funcions is called from \code{\link{cozigam}}
 automatically depending on the distribution family if
-the argument \code{constraint="component"}. 
+the argument \code{constraint="proportional"}. 
 }
 \author{
 Hai Liu and Kung-Sik Chan

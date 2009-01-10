@@ -13,9 +13,6 @@ functions will be used in the simulation study of COZIGAM fits.
 Hai Liu and Kung-Sik Chan
 }
 
-\references{
-Liu, H and Chan, K.S. (2008) Constrained Generalized Additive Model with Zero-Inflated Data. 
-}
 \seealso{
    \code{\link{cozigam}}
 }

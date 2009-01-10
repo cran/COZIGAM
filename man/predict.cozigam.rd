@@ -12,20 +12,20 @@
 \method{predict}{cozigam}(object, newdata, type="link", se.fit=FALSE, ...)
 }
 \arguments{
-   \item{object}{a fitted \code{cozigam} object as produced by \code{cozigam()}.}
-   \item{newdata}{a data frame containing the values of the model covariates at which 
+   \item{object}{A fitted \code{cozigam} object as produced by \code{cozigam()}.}
+   \item{newdata}{A data frame containing the values of the model covariates at which 
    predictions are required. If this is not provided then predictions corresponding to 
    the original data are returned. 
    If \code{newdata} is provided then it must contain all the variables needed for prediction.}
-   \item{type}{when this has the value \code{"link"} (default) the linear predictor (possibly 
+   \item{type}{When this has the value \code{"link"} (default) the linear predictor (possibly 
    with associated standard errors) is returned. 
    When \code{type="terms"} each component of the linear predictor is returned seperately (possibly 
    with standard errors): this excludes any intercept. 
    When \code{type="response"} predictions on the scale of the response are returned (possibly 
    with approximate standard errors).}
-   \item{se.fit}{logical. If \code{TRUE} (not default), standard error estimates are returned 
+   \item{se.fit}{Logical. If \code{TRUE} (not default), standard error estimates are returned 
    for each prediction.}
-   \item{...}{other arguments.}
+   \item{...}{Other arguments.}
 }
 \details{
 The standard errors produced by \code{predict.cozigam()} are based on the covariance matrix of 
@@ -46,20 +46,23 @@ Hai Liu and Kung-Sik Chan
 }
 \references{
 Liu, H and Chan, K.S. (2008) Constrained Generalized Additive Model with Zero-Inflated Data. 
+Technical Report 388, Department of Statisics and Actuarial Science, The Unversity of Iowa. 
+\url{http://www.stat.uiowa.edu/techrep/tr388.pdf} 
+
 
 Louis, T. A. (1982) Finding the Observed Information Matrix When Using EM Algorithm. J. R. Statist. Soc. B, 44, 226-233
 }
 \seealso{
-   \code{\link{cozigam}},\code{\link{plot.cozigam}}
+   \code{\link{cozigam}}, \code{\link{plot.cozigam}}
 }
 \examples{
 set.seed(11)
-n <- 600
+n <- 400
 x1 <- runif(n, 0, 1)
 x2 <- runif(n, 0, 1)
 x3 <- runif(n, 0, 1)
 
-f <- test(x1, x2)*4-mean(test(x1, x2)*4) + f0(x3)/2-mean(f0(x3)/2)
+f <- test(x1,x2)*4-mean(test(x1,x2)*4) + f0(x3)/2-mean(f0(x3)/2)
 sig <- 0.5
 mu0 <- f + 3
 y <- mu0 + rnorm(n, 0, sig)
@@ -70,10 +73,10 @@ p0 <- .Call("logit_linkinv", alpha0 + delta0 * mu0, PACKAGE = "stats")
 z <- rbinom(rep(1,n), 1, p0)
 y[z==0] <- 0
 
-res <- cozigam(y~s(x1,x2)+s(x3), conv.crit.out = 1e-4, family = gaussian)
+res <- cozigam(y~s(x1,x2)+s(x3), constraint = "proportional", family = gaussian)
 
 newdata <- data.frame(x1=c(0.5,0.8), x2=c(0.2,0.1), x3=c(0.3,0.7))
-pred <- predict(res, newdata=newdata, se.fit=TRUE, type="response")
+predict(res, newdata=newdata, se.fit=TRUE, type="response")
 }
 \keyword{smooth} \keyword{models} \keyword{regression}
  
