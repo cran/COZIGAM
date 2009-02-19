@@ -3,7 +3,7 @@
 
 cozigam <- function(formula, constraint = "proportional", zero.delta = NULL,
     maxiter = 20, conv.crit.in = 1e-5, conv.crit.out = 1e-3, size = NULL,
-    log.tran = FALSE, family, ...)
+    log.tran = FALSE, family, data=list(), ...)
 {
 
       if (is.character(family))
@@ -14,12 +14,12 @@ cozigam <- function(formula, constraint = "proportional", zero.delta = NULL,
       if (constraint == "proportional") {
           if (fam$family == "gaussian" | fam$family == "Gamma") {
               cozigam.res <- PCOZIGAM.cts(formula, maxiter, conv.crit.in,
-                  conv.crit.out, log.tran = log.tran, family = fam, ...)
+                  conv.crit.out, log.tran = log.tran, family = fam, data=data, ...)
               attr(cozigam.res, "family.type") <- "continuous"
           }
           else if (fam$family == "poisson" | fam$family == "binomial") {
               cozigam.res <- PCOZIGAM.dis(formula, maxiter, conv.crit.in,
-                  conv.crit.out, size = size, family = fam, ...)
+                  conv.crit.out, size = size, family = fam, data=data, ...)
               attr(cozigam.res, "family.type") <- "discrete"
           }
           else stop("family not recognized")
@@ -30,12 +30,12 @@ cozigam <- function(formula, constraint = "proportional", zero.delta = NULL,
           if (missing(zero.delta) | is.null(zero.delta))  stop("zero.delta not provided")
           if (fam$family == "gaussian" | fam$family == "Gamma") {
               cozigam.res <- COZIGAM.cts(formula, zero.delta, maxiter, conv.crit.in,
-                  conv.crit.out, log.tran = log.tran, family = fam, ...)
+                  conv.crit.out, log.tran = log.tran, family = fam, data=data, ...)
               attr(cozigam.res, "family.type") <- "continuous"
           }
           else if (fam$family == "poisson" | fam$family == "binomial") {
               cozigam.res <- COZIGAM.dis(formula, zero.delta, maxiter, conv.crit.in,
-                  conv.crit.out, size = size, family = fam, ...)
+                  conv.crit.out, size = size, family = fam, data=data, ...)
               attr(cozigam.res, "family.type") <- "discrete"
           }
           else stop("family not recognized")
@@ -50,19 +50,19 @@ cozigam <- function(formula, constraint = "proportional", zero.delta = NULL,
 # COZIGAM.cts(COZIGAM)
 # Component-Specific-COnstrained Zero-Inflated GAM: Continuous Case
 
-COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
-    conv.crit.out = 1e-3, log.tran = FALSE, family = gaussian(), ...)
+COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5, 
+    conv.crit.out = 1e-3, log.tran = FALSE, family = gaussian(), data=list(), ...)
 {
         require(mgcv)
-        split <- interpret.gam(formula)
-        y <- eval(parse(text=split$response))
+        gf <- interpret.gam(formula)
+        y <- eval(parse(text=gf$response), envir=data)
         n <- length(y)
-        z <- (y!=0)
-        if(log.tran==TRUE) y[z] <- log(y[z])
-
-        if (is.character(family))
+        z <- as.numeric(y!=0)
+        if(log.tran==TRUE) y[y!=0] <- log(y[y!=0])
+        
+        if (is.character(family)) 
             family <- eval(parse(text = family))
-        if (is.function(family))
+        if (is.function(family)) 
             family <- family()
         if(family$family == "gaussian") {
             d.V <- function(mu) rep.int(0, length(mu))
@@ -78,32 +78,32 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                 sum(z*(log(p)+ifelse(y==0, 1, dgamma(y,1/disp,scale=mu*disp,log=TRUE)))+(1-z)*log(1-p))
             }
         }
-        else
+        else  
             stop("family not recognized")
-
+ 
         variance <- family$variance
         linkinv <- family$linkinv
         linkfun <- family$linkfun
         mu.eta <- family$mu.eta
 
         ## Estimate dispersion parameter using non-zero data...
-        fm <- as.formula(sub(split$response,"y",deparse(formula)))
-        G1 <- gam(fm, subset=z, family=family, fit=FALSE, ...)
-        fit.nz <- gam(fm, subset=z, family=family, ...)
+        fm <- as.formula(sub(gf$response,"y",deparse(formula)))
+        G1 <- gam(fm, subset=(y!=0), family=family, fit=FALSE, data=data, ...)
+        fit.nz <- gam(fm, subset=(y!=0), family=family, data=data, ...)
         disp <- fit.nz$sig2; est.disp <- TRUE
-
+        
         ## Set initial values...
         mu <- pmax(y, 0.01)
         p <- rep(0.7, n)
         eta <- linkfun(mu) # g_mu(mu)
         gp <- eta # g_p(p)-alpha, equivalently alpha=0, delta=1
-
+         
         ## Model setup
-        G <- gam(fm, fit=FALSE, family=family, ...)
-
+        G <- gam(fm, fit=FALSE, family=family, data=data, ...) 
+        
         np <- ncol(G$X) # length of parameter beta
         n.smooth <- length(G$smooth)
-        if(n.smooth!=length(zero.delta))
+        if(n.smooth!=length(zero.delta)) 
             stop("length of 'zero.delta' does not match # of smooth terms")
         alpha <- 0
         zdelta <- !is.na(zero.delta)
@@ -113,20 +113,20 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
         M <- list() # extract the design matrix of each smooth term
         for(k in 1:n.smooth) {
             M[[k]] <- G$X[, G$smooth[[k]]$first.para:G$smooth[[k]]$last.para]
-        }
-        X.par <- as.matrix(G$X[, 1:(G$smooth[[1]]$first.para-1)]) # design matrix of parametric part
+        } 
+        X.par <- as.matrix(G$X[, 1:(G$smooth[[1]]$first.para-1)]) # design matrix of parametric part      
 
         ## Begin outer loop: iteratively update beta and alpha & delta
         rep.out <- 1; norm.out <- 1
         while(norm.out>conv.crit.out & rep.out<maxiter) {
 
             b.old <- b <- rep.int(0, np)
-
+            
             Xp <- matrix(0, ncol=ncol(X.par), nrow=nrow(X.par)) # the design matrix of the second SS
             for(k in 1:n.smooth) {
                Xp <- cbind(Xp, delta[k]*M[[k]])
-            }
-
+            }  
+           
             ## inner loop: approx logLik by WSS
             ## update beta by P-IRLS
             rep.in <- 1; norm.in <- 1
@@ -144,7 +144,7 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                     break
                 }
                 z1 <- eta[good] + (y - mu)[good]/mu.eta.val[good]
-                z2 <- gp[good] + 1/(p*(1-p))[good]*(z-p)[good]
+                z2 <- gp[good] + 1/(p*(1-p))[good]*(z-p)[good] 
 
                 y.c <- c(z1, z2)
                 w.c <- c(weights1[good], weights2[good])
@@ -156,9 +156,9 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                 b <- mgfit$b
                 sp <- mgfit$sp
                 eta <- G$X%*%b
-
+                
                 Eta <- NULL # the design matrix of binomial model
-                bp <- list() # extract the paramters for each smooth term
+                bp <- list() # extract the paramters for each smooth term 
                 eta.p <- list() # record the estimate the each smooth function
                 gp <- 0
                 for(k in 1:n.smooth) {
@@ -166,33 +166,33 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                     eta.p[[k]] <- M[[k]]%*%bp[[k]]
                     gp <- gp + delta[k]*eta.p[[k]]
                     if(!zdelta[k]) Eta <- cbind(Eta, eta.p[[k]])
-                }
+                }  
 
                 mu <- linkinv(eta)
                 p <- .Call("logit_linkinv", alpha + gp, PACKAGE = "stats")
                 norm.in <- sum((b-b.old)^2)
                 rep.in <- rep.in + 1
-            }
-
+            }   
+ 
             ## Update alpha & delta
             ## Fit a generalized linear model given beta
             alpha.old <- alpha
             delta.old <- delta
-
+            
             if(is.null(Eta)) alpha <- coef(glm(z ~ 1, family=binomial)) # Homogeneous ZI
-            else {
-                fit.glm <- glm(z ~ Eta, family=binomial) # z ~ eta.p[[1]] +...+ eta.p[[k]]
+            else {       
+                fit.glm <- glm(z ~ Eta, family=binomial) # z ~ eta.p[[1]] +...+ eta.p[[k]]     
                 alpha <- fit.glm$coef[1]
                 delta[!zdelta] <- fit.glm$coef[-1]
             }
-
+            
             ## Update p for new alpha & delta
             gp <- 0
             for(k in 1:n.smooth) {
                 gp <- gp + delta[k]*eta.p[[k]]
-            }
+            }  
             p <- .Call("logit_linkinv", alpha + gp, PACKAGE = "stats")
-
+  
             if(is.null(Eta)) norm.out <- abs(alpha-alpha.old) # actually only one outer iteration
             else norm.out <- max(abs(alpha-alpha.old), abs(delta-delta.old))
             rep.out <- rep.out + 1
@@ -211,10 +211,10 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
         rho <- z-p; d.rho <- rep.int(-1, n)
         tau <- z*(y-mu)*mu.eta.val/disp/variance(mu)
         d.tau <- z*mu.eta.val^2*( -variance(mu)/mu.eta.val-(y-mu)*(variance(mu)*d.eta.mu(mu)+
-            d.V(mu)/mu.eta.val) )/disp/(variance(mu)^2)
+            d.V(mu)/mu.eta.val) )/disp/(variance(mu)^2)        
 
 
-        Lam <- list(); n.S <- numeric(n.smooth);
+        Lam <- list(); n.S <- numeric(n.smooth); 
         Xp <- matrix(0, ncol=ncol(X.par), nrow=nrow(X.par))
         P <- NULL
         for(k in 1:n.smooth) {
@@ -244,7 +244,7 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                 P <- cbind(P, Xrho) # used in computing partial derivatives
             }
         }
-
+        
         ## Find the effective degrees of freedom
         FM <- solve(t(X.c)%*%diag(w.c^2)%*%X.c+Lambda)%*%t(X.c)%*%diag(w.c^2)%*%X.c
 
@@ -256,13 +256,13 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             edf.smooth[k] <- sum(edf[first:last])
         }
 
-        if (G$nsdf > 0)
+        if (G$nsdf > 0) 
             term.names <- colnames(G$X)[1:G$nsdf]
         else term.names <- array("", 0)
         for (i in 1:n.smooth) {
             k <- 1
             for (j in G$smooth[[i]]$first.para:G$smooth[[i]]$last.para) {
-                term.names[j] <- paste(G$smooth[[i]]$label, ".",
+                term.names[j] <- paste(G$smooth[[i]]$label, ".", 
                   as.character(k), sep = "")
                 k <- k + 1
             }
@@ -272,12 +272,12 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
 
         G.rho <- diag(as.vector(d.rho*p*(1-p)))
         G.tau <- diag(as.vector(d.tau*mu.eta.val))
-
+                
         if(is.null(Eta)) {
             I.alpha <- sum(-d.rho*p*(1-p))
             I.beta <- -t(G$X)%*%G.tau%*%G$X - t(Xp)%*%G.rho%*%Xp + Lambda
             I.alpha.beta <- t(Xp)%*%(-d.rho*p*(1-p))
-
+            
             n.theta <- 1 + np
             I.theta <- matrix(0, ncol=n.theta, nrow=n.theta)
             I.theta[1,1] <- I.alpha
@@ -289,15 +289,15 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             se.delta <- rep.int(0, n.smooth)
             V.b <- V.theta[2:n.theta,2:n.theta]
         }
-
-        else {
+        
+        else {    
             I.alpha <- sum(-d.rho*p*(1-p))
             I.delta <- -t(Eta)%*%G.rho%*%Eta
             I.alpha.delta <- t(Eta)%*%(-d.rho*p*(1-p))
             I.beta <- -t(G$X)%*%G.tau%*%G$X - t(Xp)%*%G.rho%*%Xp + Lambda
-            I.alpha.beta <- t(Xp)%*%(-d.rho*p*(1-p))
+            I.alpha.beta <- t(Xp)%*%(-d.rho*p*(1-p)) 
             I.delta.beta <- -t(Xp)%*%G.rho%*%Eta - P
-
+             
             n.delta <- sum(!zdelta) # number of non-zero delta
             n.theta <- 1 + n.delta + np
             I.theta <- matrix(0, ncol=n.theta, nrow=n.theta)
@@ -317,14 +317,14 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             se.delta[!zdelta] <- sqrt(diag(V.theta)[2:(n.delta+1)])
             V.b <- V.theta[(n.delta+2):n.theta,(n.delta+2):n.theta]
         }
-
+        
         loglik <- loglikfun(y, mu, disp, z, p)  # log-likelihood
         ploglik <- loglik - as.numeric(0.5*t(b)%*%Lambda%*%b)  # penalized log-likelihood
         DS <- diag(eigen(Lambda)$values[abs(eigen(Lambda)$values)>1e-10])
         # Laplace approximation of log marginal likelihood
         logE <- 0.5*determinant(DS)$modulus+ploglik+(n.theta-nrow(DS))/2*log(2*pi)-0.5*determinant(I.theta)$modulus
         attr(logE, "logarithm") <- NULL
-
+        
         cat("\n")
         cat("==========================================","\n")
         cat("estimated alpha =", alpha, "(", se.alpha, ")", "\n")
@@ -332,32 +332,33 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             cat(paste("estimated delta",k, sep=""),"=", delta[k], "(", se.delta[k], ")", "\n")
         }
         cat("==========================================","\n","\n")
-
-        res <- list(coefficient=theta, V.theta=V.theta, converged=converged,
-              mu=mu, linear.predictor=eta, dispersion=disp, formula=formula,
-              fit.nonzero=fit.nz, score=mgfit$score, G=G, V.beta=V.b,
+        
+        res <- list(coefficient=theta, V.theta=V.theta, converged=converged, 
+              mu=mu, linear.predictor=eta, dispersion=disp, formula=formula, 
+              fit.nonzero=fit.nz, score=mgfit$score, G=G, V.beta=V.b, 
               y=y, p=p, loglik=loglik, ploglik=ploglik, family=family, edf=edf,
-              est.disp=est.disp, edf.smooth=edf.smooth, sp=sp, se.delta=se.delta,
+              est.disp=est.disp, edf.smooth=edf.smooth, sp=sp, se.delta=se.delta, 
               se.alpha=se.alpha, logE=logE)
         class(res) <- "cozigam"
         res
 
 }
 
+
 # COZIGAM.dis(COZIGAM)
 # Component-Specific-COnstrained Zero-Inflated GAM: Distrete Case
 
-COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
-    conv.crit.out = 1e-3, size = NULL, family = poisson(), ...)
+COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5, 
+    conv.crit.out = 1e-3, size = NULL, family = poisson(), data=list(), ...)
 {
         require(mgcv)
-        split <- interpret.gam(formula)
-        y <- eval(parse(text=split$response))
+        gf <- interpret.gam(formula)
+        y <- eval(parse(text=gf$response), envir=data)
         n <- length(y)
-
-        if (is.character(family))
+                
+        if (is.character(family)) 
             family <- eval(parse(text = family))
-        if (is.function(family))
+        if (is.function(family)) 
             family <- family()
         if(family$family == "poisson") {
             d.V <- function(mu) rep.int(1, length(mu))
@@ -370,6 +371,7 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             }
         }
         else if(family$family == "binomial") {
+            if(missing(size)) stop("number of trials must be specified for binomial data")
             d.V <- function(mu) 1-2*mu
             d.eta.mu <- function(mu) (2*mu-1)/(mu^2*(1-mu)^2)
             den <- function(y, mu) dbinom(y*size, size, mu)
@@ -380,29 +382,29 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             }
         }
         else stop("family not recognized")
-
+ 
         variance <- family$variance
         linkinv <- family$linkinv
         linkfun <- family$linkfun
         mu.eta <- family$mu.eta
 
         ## Estimate dispersion parameter using non-zero data...
-        fm <- as.formula(sub(split$response,"y",deparse(formula)))
-
+        fm <- as.formula(sub(gf$response,"y",deparse(formula)))
+        
         ## Set initial values...
         if(family$family == "binomial") mu <- pmin(pmax(y, 0.01), 0.99)
         else mu <- pmax(y, 0.01)
         p <- rep(0.7, n)
         eta <- linkfun(mu) # g_mu(mu)
         gp <- eta # g_p(p)-alpha, equivalently alpha=0, delta=1
-
+         
         ## Model setup
         psi <- p*den(y, mu)/(p*den(y, mu)+(1-p)*(y==0))
-        G <- gam(fm, fit=FALSE, family=family, ...)
-
+        G <- gam(fm, fit=FALSE, family=family, data=data, ...) 
+        
         np <- ncol(G$X) # length of parameter beta
         n.smooth <- length(G$smooth) # number of smooth terms
-        if(n.smooth!=length(zero.delta))
+        if(n.smooth!=length(zero.delta)) 
             stop("length of 'zero.delta' does not match # of smooth terms")
         alpha <- 0
         zdelta <- !is.na(zero.delta)
@@ -412,8 +414,8 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
         M <- list() # extract the design matrix of each smooth term
         for(k in 1:n.smooth) {
             M[[k]] <- G$X[, G$smooth[[k]]$first.para:G$smooth[[k]]$last.para]
-        }
-        X.par <- as.matrix(G$X[, 1:(G$smooth[[1]]$first.para-1)]) # design matrix of parametric part
+        } 
+        X.par <- as.matrix(G$X[, 1:(G$smooth[[1]]$first.para-1)]) # design matrix of parametric part      
 
         ## Begin outer loop: EM algorithm
         rep.out <- 1; norm.out <- 1
@@ -421,12 +423,12 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
 
             psi <- p*den(y, mu)/(p*den(y, mu)+(1-p)*(y==0))
             b.old <- b <- rep.int(0, np)
-
+            
             Xp <- matrix(0, ncol=ncol(X.par), nrow=nrow(X.par)) # the design matrix of the second SS
             for(k in 1:n.smooth) {
                Xp <- cbind(Xp, delta[k]*M[[k]])
-            }
-
+            }  
+           
             ## inner loop: approx logLik by WSS
             ## update beta by P-IRLS
             rep.in <- 1; norm.in <- 1
@@ -443,9 +445,9 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                     warning("No observations informative at iteration")
                     break
                 }
-
+                
                 z1 <- eta[good] + (y - mu)[good]/mu.eta.val[good]
-                z2 <- gp[good] + 1/(p*(1-p))[good]*(psi-p)[good]
+                z2 <- gp[good] + 1/(p*(1-p))[good]*(psi-p)[good] 
 
                 y.c <- c(z1, z2)
                 w.c <- c(weights1[good], weights2[good])
@@ -457,9 +459,9 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                 b <- mgfit$b
                 sp <- mgfit$sp
                 eta <- G$X%*%b
-
+                
                 Eta <- NULL # the design matrix of binomial model
-                bp <- list() # extract the paramters for each smooth term
+                bp <- list() # extract the paramters for each smooth term 
                 eta.p <- list() # record the estimate the each smooth function
                 gp <- 0
                 for(k in 1:n.smooth) {
@@ -467,34 +469,34 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                     eta.p[[k]] <- M[[k]]%*%bp[[k]]
                     gp <- gp + delta[k]*eta.p[[k]]
                     if(!zdelta[k]) Eta <- cbind(Eta, eta.p[[k]])
-                }
+                }  
 
                 mu <- linkinv(eta)
                 p <- .Call("logit_linkinv", alpha + gp, PACKAGE = "stats")
                 norm.in <- sum((b-b.old)^2)
                 rep.in <- rep.in + 1
-            }
-
+            }   
+ 
             ## Update alpha & delta
             ## Fit a generalized linear model given beta
             alpha.old <- alpha
             delta.old <- delta
-
+            
             if(is.null(Eta)) alpha <- coef(glm(psi ~ 1, family=quasibinomial)) # Homogeneous ZI
-            else {
-                fit.glm <- glm(psi ~ Eta, family=quasibinomial) # z ~ eta.p[[1]] +...+ eta.p[[k]]
+            else {       
+                fit.glm <- glm(psi ~ Eta, family=quasibinomial) # z ~ eta.p[[1]] +...+ eta.p[[k]]     
                 alpha <- fit.glm$coef[1]
                 delta[!zdelta] <- fit.glm$coef[-1]
             }
-
+            
             ## Update p for new alpha & delta
             gp <- 0
             for(k in 1:n.smooth) {
                 gp <- gp + delta[k]*eta.p[[k]]
-            }
+            }  
             p <- .Call("logit_linkinv", alpha + gp, PACKAGE = "stats")
-
-            if(is.null(Eta)) norm.out <- abs(alpha-alpha.old)
+  
+            if(is.null(Eta)) norm.out <- abs(alpha-alpha.old) 
             else norm.out <- max(abs(alpha-alpha.old), abs(delta-delta.old))
             rep.out <- rep.out + 1
             cat("iteration =", rep.out, "\t", "norm =", norm.out, "\n")
@@ -512,10 +514,10 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
         rho <- psi-p; Ed.rho <- rep.int(-1, n)
         tau <- size*psi*(y-mu)*mu.eta.val/disp/variance(mu)
         Ed.tau <- size*psi*mu.eta.val^2*( -variance(mu)/mu.eta.val-(y-mu)*(variance(mu)*d.eta.mu(mu)+
-            d.V(mu)/mu.eta.val) )/disp/(variance(mu)^2)
+            d.V(mu)/mu.eta.val) )/disp/(variance(mu)^2)        
 
 
-        Lam <- list(); n.S <- numeric(n.smooth);
+        Lam <- list(); n.S <- numeric(n.smooth); 
         Xp <- matrix(0, ncol=ncol(X.par), nrow=nrow(X.par))
         P <- NULL
         for(k in 1:n.smooth) {
@@ -545,7 +547,7 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                 P <- cbind(P, Xrho) # used in computing partial derivatives
             }
         }
-
+        
         ## Find the effective degrees of freedom
         FM <- solve(t(X.c)%*%diag(w.c^2)%*%X.c+Lambda)%*%t(X.c)%*%diag(w.c^2)%*%X.c
 
@@ -557,13 +559,13 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             edf.smooth[k] <- sum(edf[first:last])
         }
 
-        if (G$nsdf > 0)
+        if (G$nsdf > 0) 
             term.names <- colnames(G$X)[1:G$nsdf]
         else term.names <- array("", 0)
         for (i in 1:n.smooth) {
             k <- 1
             for (j in G$smooth[[i]]$first.para:G$smooth[[i]]$last.para) {
-                term.names[j] <- paste(G$smooth[[i]]$label, ".",
+                term.names[j] <- paste(G$smooth[[i]]$label, ".", 
                   as.character(k), sep = "")
                 k <- k + 1
             }
@@ -576,13 +578,13 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
         W.tau <- diag(as.vector(psi*(1-psi)*size^2*(y-mu)^2*mu.eta.val^2/(disp^2)/(variance(mu)^2)))
         W.rho <- diag(as.vector(psi*(1-psi)))
         W.tau.rho <- diag(as.vector(psi*(1-psi)*size*(y-mu)*mu.eta.val/disp/variance(mu)))
-
+        
         if(is.null(Eta)) {  # Homogeneous ZI
             I.alpha <- sum(-Ed.rho*p*(1-p)-psi*(1-psi))
-            I.beta <- -t(G$X)%*%(G.tau+W.tau)%*%G$X - t(Xp)%*%(G.rho+W.rho)%*%Xp
+            I.beta <- -t(G$X)%*%(G.tau+W.tau)%*%G$X - t(Xp)%*%(G.rho+W.rho)%*%Xp 
                       - t(G$X)%*%W.tau.rho%*%Xp - t(Xp)%*%W.tau.rho%*%G$X + Lambda
             I.alpha.beta <- t(Xp)%*%(-Ed.rho*p*(1-p)) - (t(Xp)%*%W.rho+t(G$X)%*%W.tau.rho)%*%rep.int(1,n)
-
+            
             n.theta <- 1 + length(b)
             n.delta <- 0
             I.theta <- matrix(NA, ncol=n.theta, nrow=n.theta)
@@ -590,24 +592,24 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             I.theta[1,2:n.theta] <- I.alpha.beta
             I.theta[2:n.theta,1] <- I.alpha.beta
             I.theta[2:n.theta,2:n.theta] <- I.beta
-
+            
             colnames(I.theta) <- rownames(I.theta) <- NULL
             V.theta <- solve(I.theta)
             se.alpha <- sqrt(V.theta[1,1])
             se.delta <- rep.int(0, n.smooth)
             V.b <- V.theta[-1,-1]
         }
-
-        else {
+        
+        else {    
             I.alpha <- sum(-Ed.rho*p*(1-p)-psi*(1-psi))
             I.delta <- -t(Eta)%*%(G.rho+W.rho)%*%Eta
-            I.alpha.delta <- -t(Eta)%*%(Ed.rho*p*(1-p)+psi*(1-psi))
+            I.alpha.delta <- -t(Eta)%*%(Ed.rho*p*(1-p)+psi*(1-psi)) 
 
-            I.beta <- -t(G$X)%*%(G.tau+W.tau)%*%G$X - t(Xp)%*%(G.rho+W.rho)%*%Xp
+            I.beta <- -t(G$X)%*%(G.tau+W.tau)%*%G$X - t(Xp)%*%(G.rho+W.rho)%*%Xp 
                       - t(G$X)%*%W.tau.rho%*%Xp - t(Xp)%*%W.tau.rho%*%G$X + Lambda
-            I.alpha.beta <- t(Xp)%*%(-Ed.rho*p*(1-p)) - (t(Xp)%*%W.rho+t(G$X)%*%W.tau.rho)%*%rep.int(1,n)
+            I.alpha.beta <- t(Xp)%*%(-Ed.rho*p*(1-p)) - (t(Xp)%*%W.rho+t(G$X)%*%W.tau.rho)%*%rep.int(1,n) 
             I.delta.beta <- -t(Xp)%*%G.rho%*%Eta - (t(Xp)%*%W.rho+t(G$X)%*%W.tau.rho)%*%Eta
-
+             
             n.delta <- sum(!zdelta) # number of non-zero delta
             n.theta <- 1 + n.delta + length(b)
             I.theta <- matrix(NA, ncol=n.theta, nrow=n.theta)
@@ -630,12 +632,12 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
 
         loglik <- loglikfun(y, mu, p)  # log-likelihood
         ploglik <- loglik - as.numeric(0.5*t(b)%*%Lambda%*%b)  # penalized log-likelihood
-
+                
         # Laplace approximation of log marginal likelihood
         DS <- diag(eigen(Lambda)$values[abs(eigen(Lambda)$values)>1e-10])
         logE <- 0.5*determinant(DS)$modulus+ploglik+(np+1+n.delta-nrow(DS))/2*log(2*pi)-0.5*determinant(I.theta)$modulus
         attr(logE, "logarithm") <- NULL
-
+        
         cat("\n")
         cat("==========================================","\n")
         cat("estimated alpha =", alpha, "(", se.alpha, ")", "\n")
@@ -643,34 +645,35 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             cat(paste("estimated delta",k, sep=""),"=", delta[k], "(", se.delta[k], ")", "\n")
         }
         cat("==========================================","\n","\n")
-
-        res <- list(coefficient=theta, V.theta=V.theta, converged=converged,
-              mu=mu, linear.predictor=eta, dispersion=disp, formula=formula,
-              score=mgfit$score, G=G, V.beta=V.b, y=y, p=p, psi=psi, loglik=loglik,
-              ploglik=ploglik, family=family, edf=edf, est.disp=est.disp,
-              edf.smooth=edf.smooth, sp=sp, se.delta=se.delta, se.alpha=se.alpha,
+                          
+        res <- list(coefficient=theta, V.theta=V.theta, converged=converged, 
+              mu=mu, linear.predictor=eta, dispersion=disp, formula=formula, 
+              score=mgfit$score, G=G, V.beta=V.b, y=y, p=p, psi=psi, loglik=loglik, 
+              ploglik=ploglik, family=family, edf=edf, est.disp=est.disp, 
+              edf.smooth=edf.smooth, sp=sp, se.delta=se.delta, se.alpha=se.alpha, 
               logE=logE)
         class(res) <- "cozigam"
         res
 
 }
 
+
 # PCOZIGAM.cts(COZIGAM)
 # Proportional COnstrained Zero-Inflated GAM: Continuous Case
 
-PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
-    conv.crit.out = 1e-3, log.tran = FALSE, family = gaussian(), ...)
+PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5, 
+    conv.crit.out = 1e-3, log.tran = FALSE, family = gaussian(), data=list(), ...)
 {
         require(mgcv)
-        split <- interpret.gam(formula)
-        y <- eval(parse(text=split$response))
+        gf <- interpret.gam(formula)
+        y <- eval(parse(text=gf$response), envir=data)
         n <- length(y)
-        z <- (y!=0)
-        if(log.tran==TRUE) y[z] <- log(y[z])
-
-        if (is.character(family))
+        z <- as.numeric(y!=0)
+        if(log.tran==TRUE) y[y!=0] <- log(y[y!=0])
+        
+        if (is.character(family)) 
             family <- eval(parse(text = family))
-        if (is.function(family))
+        if (is.function(family)) 
             family <- family()
         if(family$family == "gaussian") {
             d.V <- function(mu) rep.int(0, length(mu))
@@ -685,38 +688,38 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
             loglikfun <- function(y, mu, disp, z, p) {
                 sum(z*(log(p)+ifelse(y==0, 1, dgamma(y,1/disp,scale=mu*disp,log=TRUE)))+(1-z)*log(1-p))
             }
-        }
-        else
+        }                                        
+        else  
             stop("family not recognized")
-
+ 
         variance <- family$variance
         linkinv <- family$linkinv
         linkfun <- family$linkfun
         mu.eta <- family$mu.eta
 
-        fm <- as.formula(sub(split$response,"y",deparse(formula)))
+        fm <- as.formula(sub(gf$response,"y",deparse(formula)))
 
         ## Estimate dispersion parameter using non-zero data...
-        fit.nz <- gam(fm, subset=z, family=family, ...)
-        G1 <- gam(fm, subset=z, family=family, fit=FALSE, ...)
+        fit.nz <- gam(fm, subset=(y!=0), family=family, data=data, ...)
+        G1 <- gam(fm, subset=(y!=0), family=family, fit=FALSE, data=data, ...)
         disp <- fit.nz$sig2; est.disp <- TRUE
-
+        
         ## Set initial values...
         alpha <- 0; delta <- 1
 
         mu <- pmax(y, 0.01)
         p <- rep(0.7, n)
         eta1 <- linkfun(mu); eta2 <- delta*eta1
-
+         
         ## Model setup
-        G <- gam(fm, fit=FALSE, family=family, ...)
+        G <- gam(fm, fit=FALSE, family=family, data=data, ...)
 
         ## Begin outer loop: iteratively update beta and alpha & delta
         rep.out <- 1; norm.out <- 1
         while(norm.out>conv.crit.out & rep.out<maxiter) {
 
             b.old <- b <- rep(0, ncol(G$X))
-
+        
             ## inner loop: approx logLik by WSS
             ## update beta by P-IRLS
             rep.in <- 1; norm.in <- 1
@@ -734,7 +737,7 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
                     break
                 }
                 z1 <- eta1[good] + (y - mu)[good]/mu.eta.val[good]
-                z2 <- eta2[good] + 1/(p*(1-p))[good]*(z-p)[good]
+                z2 <- eta2[good] + 1/(p*(1-p))[good]*(z-p)[good] 
 
                 y.c <- c(z1, z2)
                 w.c <- c(weights1[good], weights2[good])
@@ -750,13 +753,13 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
                 p <- .Call("logit_linkinv", eta2+alpha, PACKAGE = "stats")
                 norm.in <- sum((b-b.old)^2)
                 rep.in <- rep.in + 1
-            }
-
+            }   
+ 
             ## Update alpha & delta
             ## Fit a generalized linear model given eta1
             alpha.old <- alpha
             delta.old <- delta
-
+       
             fit.glm <- glm(z ~ eta1, family=binomial)
             alpha <- fit.glm$coef[1]
             delta <- fit.glm$coef[2]
@@ -764,7 +767,7 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
             ## Update p for new alpha & delta
             eta2 <- delta*eta1
             p <- .Call("logit_linkinv", eta2+alpha, PACKAGE = "stats")
-
+  
             norm.out <- max(abs(alpha-alpha.old), abs(delta-delta.old))
             rep.out <- rep.out + 1
             cat("iteration =", rep.out, "\t", "norm =", norm.out, "\n")
@@ -817,13 +820,13 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
             edf.smooth[k] <- sum(edf[first:last])
         }
 
-        if (G$nsdf > 0)
+        if (G$nsdf > 0) 
             term.names <- colnames(G$X)[1:G$nsdf]
         else term.names <- array("", 0)
         for (i in 1:n.smooth) {
             k <- 1
             for (j in G$smooth[[i]]$first.para:G$smooth[[i]]$last.para) {
-                term.names[j] <- paste(G$smooth[[i]]$label, ".",
+                term.names[j] <- paste(G$smooth[[i]]$label, ".", 
                   as.character(k), sep = "")
                 k <- k + 1
             }
@@ -839,14 +842,14 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
         G.rho <- diag(as.vector(d.rho*p*(1-p)))
         G.tau <- diag(as.vector(d.tau*mu.eta.val))
         eta1 <- as.vector(eta1)
-
+        
         I.alpha <- sum(diag(G.rho))
         I.delta <- t(eta1)%*%G.rho%*%eta1
         I.alpha.delta <- t(rep.int(1, n))%*%G.rho%*%eta1
         I.beta <- t(G$X)%*%G.tau%*%G$X + delta^2*t(G$X)%*%G.rho%*%G$X - Lambda
-        I.alpha.beta <- delta*t(G$X)%*%G.rho%*%rep.int(1, n)
+        I.alpha.beta <- delta*t(G$X)%*%G.rho%*%rep.int(1, n) 
         I.delta.beta <- delta*t(G$X)%*%G.rho%*%eta1 + t(G$X)%*%rho
-
+                    
         I.theta <- matrix(0, ncol=np+2, nrow=np+2)
         I.theta[1,1] <- I.alpha; I.theta[1,2] <- I.theta[2,1] <- I.alpha.delta
         I.theta[3:(np+2), 1] <- I.theta[1,3:(np+2)] <- I.alpha.beta
@@ -854,53 +857,54 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
         I.theta[3:(np+2), 2] <- I.theta[2,3:(np+2)] <- I.delta.beta
         I.theta[3:(np+2),3:(np+2)] <- I.beta
         I.theta <- -I.theta
-
+        
         V.theta <- solve(I.theta)
-        se.alpha <- sqrt(V.theta[1,1])
+        se.alpha <- sqrt(V.theta[1,1])   
         se.delta <- sqrt(V.theta[2,2])
         V.beta <- V.theta[3:(np+2),3:(np+2)]
-
+        
         loglik <- loglikfun(y, mu, disp, z, p) # log-likelihood
         ploglik <- loglik - as.numeric(0.5*t(b)%*%Lambda%*%b) # penalized log-likelihood
-
+        
         # Model comparison/selection
         # Strictly positive eigenvalues of the penalty matrix Lambda
-        DS <- diag(eigen(Lambda)$values[abs(eigen(Lambda)$values)>1e-10])
+        DS <- diag(eigen(Lambda)$values[abs(eigen(Lambda)$values)>1e-10]) 
         # Laplace approximation of log marginal likelihood
         logE <- 0.5*determinant(DS)$modulus+ploglik+(np+2-nrow(DS))/2*log(2*pi)-0.5*determinant(I.theta)$modulus
         attr(logE, "logarithm") <- NULL
-
+        
         cat("\n")
         cat("==========================================","\n")
         cat("estimated alpha =", alpha, "(", se.alpha, ")", "\n")
         cat("estimated delta =", delta, "(", se.delta, ")", "\n")
         cat("==========================================","\n","\n")
-
-        res <- list(coefficient=theta, V.theta=V.theta, converged=converged,
-              mu=mu, linear.predictor=eta1, dispersion=disp, formula=formula,
-              fit.nonzero=fit.nz, score=mgfit$score, G=G, V.beta=V.beta,
+    
+        res <- list(coefficient=theta, V.theta=V.theta, converged=converged, 
+              mu=mu, linear.predictor=eta1, dispersion=disp, formula=formula, 
+              fit.nonzero=fit.nz, score=mgfit$score, G=G, V.beta=V.beta, 
               y=y, p=p, loglik=loglik, ploglik=ploglik, family=family, edf=edf,
-              est.disp=est.disp, edf.smooth=edf.smooth, sp=sp, se.delta=se.delta,
+              est.disp=est.disp, edf.smooth=edf.smooth, sp=sp, se.delta=se.delta, 
               se.alpha=se.alpha, logE=logE)
         class(res) <- "cozigam"
         res
 
 }
 
+
 # PCOZIGAM.dis(COZIGAM)
 # Proportional COnstrained Zero-Inflated GAM: Distrete Case
 
-PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
-    conv.crit.out = 1e-3, size = NULL, family = poisson(), ...)
+PCOZIGAM.dis <- function(formula, maxiter = 20, conv.crit.in = 1e-5, 
+    conv.crit.out = 1e-3, size = NULL, family = poisson(), data=list(), ...)
 {
         require(mgcv)
-        split <- interpret.gam(formula)
-        y <- eval(parse(text=split$response))
+        gf <- interpret.gam(formula)
+        y <- eval(parse(text=gf$response), envir=data)
         n <- length(y)
-
-        if (is.character(family))
+                
+        if (is.character(family)) 
             family <- eval(parse(text = family))
-        if (is.function(family))
+        if (is.function(family)) 
             family <- family()
         if(family$family == "poisson") {
             d.V <- function(mu) rep.int(1, length(mu))
@@ -913,6 +917,7 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
             }
         }
         else if(family$family == "binomial") {
+            if(missing(size)) stop("number of trials must be specified for binomial data")
             d.V <- function(mu) 1-2*mu
             d.eta.mu <- function(mu) (2*mu-1)/(mu^2*(1-mu)^2)
             den <- function(y, mu) dbinom(y*size, size, mu)
@@ -923,14 +928,14 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
             }
         }
         else stop("family not recognized")
-
+ 
         variance <- family$variance
         linkinv <- family$linkinv
         linkfun <- family$linkfun
         mu.eta <- family$mu.eta
 
-        fm <- as.formula(sub(split$response,"y",deparse(formula)))
-
+        fm <- as.formula(sub(gf$response,"y",deparse(formula)))
+        
         ## Set initial values...
         alpha <- 0; delta <- 1
 
@@ -938,18 +943,18 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
         else mu <- pmax(y, 0.01)
         p <- rep(0.6, n)
         eta1 <- linkfun(mu); eta2 <- delta*eta1
-
+         
         ## Model setup
         psi <- p*den(y, mu)/(p*den(y, mu)+(1-p)*(y==0))
-        G <- gam(fm, fit=FALSE, family=family, ...)
-
+        G <- gam(fm, fit=FALSE, family=family, data=data, ...)
+        
         ## Begin outer loop: EM algorithm
         rep.out <- 1; norm.out <- 1
         while(norm.out>conv.crit.out & rep.out<maxiter) {
 
             psi <- p*den(y, mu)/(p*den(y, mu)+(1-p)*(y==0))
             b.old <- b <- rep(0, ncol(G$X))
-
+        
             ## inner loop: approx logLik by WSS
             ## updating beta by P-IRLS
             rep.in <- 1; norm.in <- 1
@@ -967,7 +972,7 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
                     break
                 }
                 z1 <- eta1[good] + (y - mu)[good]/mu.eta.val[good]
-                z2 <- eta2[good] + 1/(p*(1-p))[good]*(psi-p)[good]
+                z2 <- eta2[good] + 1/(p*(1-p))[good]*(psi-p)[good] 
 
                 y.c <- c(z1, z2)
                 w.c <- c(weights1[good], weights2[good])
@@ -983,14 +988,14 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
                 p <- .Call("logit_linkinv", eta2+alpha, PACKAGE = "stats")
                 norm.in <- sum((b-b.old)^2)
                 rep.in <- rep.in + 1
-
-            }
-
+            
+            }   
+ 
             ## Update alpha & delta
             ## Fit a generalized linear model given eta1
             alpha.old <- alpha
             delta.old <- delta
-
+       
             fit.glm <- glm(psi ~ eta1, family=quasibinomial)
             alpha <- fit.glm$coef[1]
             delta <- fit.glm$coef[2]
@@ -998,11 +1003,11 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
             ## Update p for new alpha & delta
             eta2 <- delta*eta1
             p <- .Call("logit_linkinv", eta2+alpha, PACKAGE = "stats")
-
+            
             norm.out <- max(abs(alpha-alpha.old), abs(delta-delta.old))
             rep.out <- rep.out + 1
             cat("iteration =", rep.out, "\t", "norm =", norm.out, "\n")
-
+  
         }
 
         names(alpha) <- names(delta) <- NULL
@@ -1049,13 +1054,13 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
             edf.smooth[k] <- sum(edf[first:last])
         }
 
-        if (G$nsdf > 0)
+        if (G$nsdf > 0) 
             term.names <- colnames(G$X)[1:G$nsdf]
         else term.names <- array("", 0)
         for (i in 1:n.smooth) {
             k <- 1
             for (j in G$smooth[[i]]$first.para:G$smooth[[i]]$last.para) {
-                term.names[j] <- paste(G$smooth[[i]]$label, ".",
+                term.names[j] <- paste(G$smooth[[i]]$label, ".", 
                   as.character(k), sep = "")
                 k <- k + 1
             }
@@ -1074,11 +1079,11 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
         I.beta <- t(G$X)%*%(diag(as.vector(-Ed.tau*mu.eta.val-psi*(1-psi)*size^2*(y-mu)^2*mu.eta.val^2/(disp^2)/(variance(mu)^2))))%*%G$X +
                   delta^2*t(G$X)%*%(diag(as.vector(-Ed.rho*p*(1-p)-psi*(1-psi))))%*%G$X -
                   2*delta*t(G$X)%*%(diag(as.vector(psi*(1-psi)*size*(y-mu)*mu.eta.val/disp/variance(mu))))%*%G$X + Lambda
-        I.alpha.beta <- -delta*t(G$X)%*%(Ed.rho*p*(1-p)+psi*(1-psi)) -
-                        t(G$X)%*%(psi*(1-psi)*size*(y-mu)*mu.eta.val/disp/variance(mu))
-        I.delta.beta <- -delta*t(G$X)%*%(eta1*(Ed.rho*p*(1-p)+psi*(1-psi))) -
-                        t(G$X)%*%(psi-p+eta1*psi*(1-psi)*size*(y-mu)*mu.eta.val/disp/variance(mu))
-
+        I.alpha.beta <- -delta*t(G$X)%*%(Ed.rho*p*(1-p)+psi*(1-psi)) - 
+                        t(G$X)%*%(psi*(1-psi)*size*(y-mu)*mu.eta.val/disp/variance(mu)) 
+        I.delta.beta <- -delta*t(G$X)%*%(eta1*(Ed.rho*p*(1-p)+psi*(1-psi))) - 
+                        t(G$X)%*%(psi-p+eta1*psi*(1-psi)*size*(y-mu)*mu.eta.val/disp/variance(mu)) 
+ 
         I.theta <- cbind(rbind(I.alpha,I.alpha.delta,I.alpha.beta),
                          rbind(I.alpha.delta,I.delta,I.delta.beta),
                          rbind(t(I.alpha.beta),t(I.delta.beta),I.beta))
@@ -1097,33 +1102,34 @@ PCOZIGAM.dis <- function(formula, maxiter = 30, conv.crit.in = 1e-5,
 
         loglik <- loglikfun(y, mu, p) # log-likelihood
         ploglik <- loglik - as.numeric(0.5*t(b)%*%Lambda%*%b)  # penalized log-likelihood
-
+        
         # Model comparison/selection
         # Strictly positive eigenvalues of the penalty matrix Lambda
         DS <- diag(eigen(Lambda)$values[abs(eigen(Lambda)$values)>1e-10])
         # Laplace approximation of log marginal likelihood
         logE <- 0.5*determinant(DS)$modulus+ploglik+(np+2-nrow(DS))/2*log(2*pi)-0.5*determinant(I.theta)$modulus
         attr(logE, "logarithm") <- NULL
-
-        res <- list(coefficient=theta, V.theta=V.theta, converged=converged,
-              mu=mu, linear.predictor=eta1, dispersion=disp, formula=formula,
-              score=mgfit$score, G=G, V.beta=V.b, y=y*size, psi=psi,
+             
+        res <- list(coefficient=theta, V.theta=V.theta, converged=converged, 
+              mu=mu, linear.predictor=eta1, dispersion=disp, formula=formula, 
+              score=mgfit$score, G=G, V.beta=V.b, y=y*size, psi=psi, 
               p=p, family=family, edf=edf, loglik=loglik, ploglik=ploglik,
-              est.disp=est.disp, edf.smooth=edf.smooth, se.delta=se.delta,
+              est.disp=est.disp, edf.smooth=edf.smooth, se.delta=se.delta, 
               se.alpha=se.alpha, logE=logE)
         class(res) <- "cozigam"
         res
 
 }
 
+
 # disgam(COZIGAM)
 # Log marginal likelihood for discrete GAM
 
-disgam <- function(formula, size=NULL, family = poisson(), ...)
+disgam <- function(formula, size=NULL, family = poisson(), data=list(), ...)
 {
         require(mgcv)
-        split <- interpret.gam(formula)
-        y <- eval(parse(text=split$response))
+        gf <- interpret.gam(formula)
+        y <- eval(parse(text=gf$response), envir=data)
         n <- length(y)
 
         if (is.character(family))
@@ -1138,6 +1144,7 @@ disgam <- function(formula, size=NULL, family = poisson(), ...)
             loglikfun <- function(y, mu) sum(dpois(y,mu,log=TRUE))
         }
         else if(family$family == "binomial") {
+            if(missing(size)) stop("number of trials must be specified for binomial data")
             d.V <- function(mu) 1-2*mu
             d.eta.mu <- function(mu) (2*mu-1)/(mu^2*(1-mu)^2)
             den <- function(y, mu) dbinom(y*size, size, mu)
@@ -1149,14 +1156,14 @@ disgam <- function(formula, size=NULL, family = poisson(), ...)
         linkinv <- family$linkinv
         linkfun <- family$linkfun
         mu.eta <- family$mu.eta
+        data$size <- size
 
-        fm <- as.formula(sub(split$response,"y",deparse(formula)))
-        G <- gam(fm, fit=FALSE, family=family, weights=size, ...)
-        fit.gam <- gam(fm, family=family, weights=size, ...)
+        G <- gam(formula, fit=FALSE, family=family, weights=size, data=data, ...)
+        fit.gam <- gam(formula, family=family, weights=size, data=data, ...)
         b <- fit.gam$coefficients
         sp <- fit.gam$sp
         mu <- fit.gam$fitted.values
-
+        
         n.smooth <- length(G$smooth) # penalty matrix
         np <- length(b)
         Lambda <- matrix(0, np, np)
@@ -1195,8 +1202,8 @@ disgam <- function(formula, size=NULL, family = poisson(), ...)
         # Laplace approximation of log marginal likelihood
         logE <- 0.5*determinant(DS)$modulus+ploglik+(np-nrow(DS))/2*log(2*pi)-0.5*determinant(I.beta)$modulus
         attr(logE, "logarithm") <- NULL
-
-        res <- list(fit.gam=fit.gam, logE=logE, V.beta=V.beta, loglik=loglik, ploglik=ploglik,
+                
+        res <- list(fit.gam=fit.gam, logE=logE, V.beta=V.beta, loglik=loglik, ploglik=ploglik, 
           mu=mu, formula=formula, family=family)
 
 }
@@ -1244,11 +1251,13 @@ plot.cozigam <- function(x, plot.2d = "contour", too.far = 0,
                 se.fit <- sqrt(rowSums((X.pred%*%V.b[first:last,first:last])*X.pred))
                 ci.upper <- fit + 2*se.fit
                 ci.lower <- fit - 2*se.fit
-                if(missing(xlab)) xlab <- colnames(pr)
-                if(missing(ylab)) ylab <- NA
+                if(missing(xlab)) x.lab <- colnames(pr)
+                else x.lab=xlab
+                if(missing(ylab)) y.lab <- NA
+                else y.lab=ylab
 
                 if (shade.ci) {
-                    plot(fit~xx, type="l", col="black", xlab=xlab, ylab=ylab,
+                    plot(fit~xx, type="l", col="black", xlab=x.lab, ylab=y.lab,
                         ylim=c(min(ci.lower),max(ci.upper)), ...)
                     polygon(c(xx, xx[n.1d:1], xx[1]), c(ci.upper, ci.lower[n.1d:1], ci.upper[1]),
                         col = shade.col, border = NA)
@@ -1258,7 +1267,7 @@ plot.cozigam <- function(x, plot.2d = "contour", too.far = 0,
                     }
                 }
                 else {
-                    plot(fit~xx, type="l", col="black", xlab=xlab, ylab=ylab,
+                    plot(fit~xx, type="l", col="black", xlab=x.lab, ylab=y.lab,
                         ylim=c(min(ci.lower),max(ci.upper)), ...)
                     lines(ci.upper~xx, type="l", col="black", lty=2)
                     lines(ci.lower~xx, type="l", col="black", lty=2)
@@ -1290,11 +1299,13 @@ plot.cozigam <- function(x, plot.2d = "contour", too.far = 0,
                     exclude <- exclude.too.far(gx, gz, raw$xx, raw$zz, dist = too.far)
                 else exclude <- rep(FALSE, n.2d*n.2d)
                 fit[exclude] <- NA
-                if(missing(xlab)) xlab <- G$smooth[[k]]$term[1]
-                if(missing(ylab)) ylab <- G$smooth[[k]]$term[2]
+                if(missing(xlab)) x.lab <- G$smooth[[k]]$term[1]
+                else x.lab=xlab
+                if(missing(ylab)) y.lab <- G$smooth[[k]]$term[2]
+                else y.lab=ylab
 
                 if(plot.2d=="contour") {
-                      if(is.null(image.col)) contour(xs, zs, fit, col=contour.col, xlab=xlab, ylab=ylab, ...)
+                      if(is.null(image.col)) contour(xs, zs, fit, col=contour.col, xlab=x.lab, ylab=y.lab, ...)
                       else {
                             if(image.col=="terrain") Col <- terrain.colors(n.Col)
                             else if(image.col=="topo") Col <- topo.colors(n.Col)
@@ -1308,7 +1319,7 @@ plot.cozigam <- function(x, plot.2d = "contour", too.far = 0,
                             }
                             else stop("color scheme not recognised")
 
-                            image(xs, zs, fit, col=Col, xlab=xlab, ylab=ylab, ...)
+                            image(xs, zs, fit, col=Col, xlab=x.lab, ylab=y.lab, ...)
                             contour(xs, zs, fit, col=contour.col, add=TRUE)
                       }
                       if (Rug) {
@@ -1318,7 +1329,7 @@ plot.cozigam <- function(x, plot.2d = "contour", too.far = 0,
                       }
                 }
                 else if(plot.2d=="persp")
-                      persp(xs, zs, fit, col=persp.col, theta=theta, phi=phi, xlab=xlab, ylab=ylab, ...)
+                      persp(xs, zs, fit, col=persp.col, theta=theta, phi=phi, xlab=x.lab, ylab=y.lab, ...)
                 else stop("2-dim plot unavailable")
           }
 	    else warning("dim>=3 cannot be visualized")
@@ -1442,8 +1453,12 @@ print.cozigam <- function (x, ...)
     n.smooth <- length(x$G$smooth)
     cat("\nCoefficients of Constraint","\n")
     cat(" alpha =", round(alpha,5), "(", round(se.alpha,5), ")", "\n")
-    for (k in 1:n.smooth) {
-        cat(paste(" delta",k, sep=""),"=", round(delta[k],5), "(", round(se.delta[k],5), ")", "\n")
+    if (attr(x,"constraint")=="proportional") 
+        cat(" delta =", round(delta,5), "(", round(se.delta,5), ")", "\n")
+    else {
+        for (k in 1:length(delta)) {
+            cat(paste(" delta",k, sep=""),"=", round(delta[k],5), "(", round(se.delta[k],5), ")", "\n")
+        }
     }
 
     if (n.smooth == 0)
@@ -1671,7 +1686,7 @@ test <- function(x, z, sx=0.3, sz=0.4)
 # zigam(COZIGAM)
 
 zigam <- function(formula, maxiter = 20, conv.crit = 1e-3,
-    size = NULL, log.tran = FALSE, family, ...)
+    size = NULL, log.tran = FALSE, family, data=list(), ...)
 {
 
       if (is.character(family))
@@ -1679,11 +1694,11 @@ zigam <- function(formula, maxiter = 20, conv.crit = 1e-3,
       if (is.function(family))
           fam <- family()
       if (fam$family == "gaussian" | fam$family == "Gamma") {
-          zigam.res <- ZIGAM.cts(formula, log.tran = log.tran, family = fam, ...)
+          zigam.res <- ZIGAM.cts(formula, log.tran = log.tran, family = fam, data=data, ...)
           attr(zigam.res, "family.type") <- "continuous"
       }
       else if (fam$family == "poisson" | fam$family == "binomial") {
-          zigam.res <- ZIGAM.dis(formula, maxiter, conv.crit, size = size, family = fam, ...)
+          zigam.res <- ZIGAM.dis(formula, maxiter, conv.crit, size = size, family = fam, data=data, ...)
           attr(zigam.res, "family.type") <- "discrete"
       }
       else stop("family not recognized")
@@ -1696,19 +1711,19 @@ zigam <- function(formula, maxiter = 20, conv.crit = 1e-3,
 
 # ZIGAM.cts(COZIGAM)
 
-ZIGAM.cts <- function(formula, log.tran = FALSE, family = gaussian(), ...)
+ZIGAM.cts <- function(formula, log.tran = FALSE, family = gaussian(), data=list(), ...) 
 {
 
         require(mgcv)
-        split <- interpret.gam(formula)
-        y <- eval(parse(text=split$response))
+        gf <- interpret.gam(formula)
+        y <- eval(parse(text=gf$response), envir=data)
         z <- as.numeric(y!=0)
         n <- length(y)
         if(log.tran==TRUE) y[y!=0] <- log(y[y!=0])
-
-        if (is.character(family))
+        
+        if (is.character(family)) 
                 family <- eval(parse(text = family))
-        if (is.function(family))
+        if (is.function(family)) 
                 family <- family()
         if(family$family == "gaussian") {
             d.V <- function(mu) rep.int(0, length(mu))
@@ -1723,34 +1738,34 @@ ZIGAM.cts <- function(formula, log.tran = FALSE, family = gaussian(), ...)
             loglikfun <- function(y, mu, disp, z, p) {
                 sum(z*(log(p)+ifelse(y==0, 1, dgamma(y,1/disp,scale=mu*disp,log=TRUE)))+(1-z)*log(1-p))
             }
-        }
-        else
+        }                                        
+        else  
             stop("family not recognized")
-
+     
         variance <- family$variance
         linkinv <- family$linkinv
         linkfun <- family$linkfun
         mu.eta <- family$mu.eta
-
-        fm1 <- as.formula(sub(split$response,"y",deparse(formula)))
-        fm2 <- as.formula(sub(split$response,"z",deparse(formula)))
-
-        G1 <- gam(fm1, subset=(y!=0), fit=FALSE, family=family, ...)
-        G2 <- gam(fm2, family=binomial, fit=FALSE, ...)
-
+            
+        fm1 <- as.formula(sub(gf$response,"y",deparse(formula)))
+        fm2 <- as.formula(sub(gf$response,"z",deparse(formula)))
+    
+        G1 <- gam(fm1, subset=(y!=0), fit=FALSE, family=family, data=data, ...)
+        G2 <- gam(fm2, family=binomial, fit=FALSE, data=data, ...)
+    
         fit.gam <- gam(G = G1)
         fit.lr <- gam(G = G2)
-
+    
         b1 <- fit.gam$coef; b2 <- fit.lr$coef
         mu <- rep.int(0,n)
         mu[y!=0] <- fitted(fit.gam)
         mu.eta.val <- mu.eta(mu)
         p <- fit.lr$fitted
         disp <- fit.gam$sig2
-
+    
         np1 <- length(b1); np2 <- length(b2)
         sp1 <- fit.gam$sp; sp2 <- fit.lr$sp
-
+    
         n.smooth <- length(G1$smooth)
         Lambda1 <- matrix(0, np1, np1)
             Lam <- list(); n.S <- numeric(n.smooth) # penalty matrix
@@ -1778,7 +1793,7 @@ ZIGAM.cts <- function(formula, log.tran = FALSE, family = gaussian(), ...)
             }
         n.smooth <- length(G2$smooth)
         Lambda2 <- matrix(0, np2, np2)
-
+    
         Lam <- list(); n.S <- numeric(n.smooth) # penalty matrix
         for(k in 1:n.smooth) {
             n.S[k] <- length(G2$smooth[[k]]$S)
@@ -1802,38 +1817,38 @@ ZIGAM.cts <- function(formula, log.tran = FALSE, family = gaussian(), ...)
             last <- G2$smooth[[k]]$last.para
             Lambda2[first:last, first:last] <- Lam[[k]]
         }
-
+    
         DS1 <- diag(eigen(Lambda1)$values[abs(eigen(Lambda1)$values)>1e-10])
         DS2 <- diag(eigen(Lambda2)$values[abs(eigen(Lambda2)$values)>1e-10])
-
+    
         X1 <- matrix(0, ncol=ncol(G1$X), nrow=n)
-        X1[y!=0,] <- G1$X
+        X1[y!=0,] <- G1$X 
         X2 <- G2$X
-
+    
         rho <- z-p; d.rho <- rep.int(-1, n)
         tau <- (z*(y-mu)*mu.eta.val/disp/variance(mu))
         d.tau <- (z*mu.eta.val^2*( -variance(mu)/mu.eta.val-(y-mu)*(variance(mu)*d.eta.mu(mu)+
           d.V(mu)/mu.eta.val) )/disp/(variance(mu)^2))
-
+    
         I.beta <- t(X1)%*%(diag(as.vector(-d.tau*mu.eta.val)))%*%X1 + Lambda1
         I.gamma <- t(X2)%*%(diag(as.vector(-d.rho*p*(1-p))))%*%X2 + Lambda2
-
+    
         I.theta <- matrix(0, ncol=np1+np2, nrow=np1+np2)
         I.theta[1:np1,1:np1] <- I.beta
         I.theta[(np1+1):(np1+np2),(np1+1):(np1+np2)] <- I.gamma
-
+    
         loglik <- loglikfun(y, mu, disp, z, p)
         ploglik <- loglik - as.numeric(0.5*t(b1)%*%Lambda1%*%b1) - as.numeric(0.5*t(b2)%*%Lambda2%*%b2)
-
-        logE <- 0.5*determinant(DS1)$modulus + 0.5*determinant(DS2)$modulus+ploglik +
-          (np1+np2-(nrow(DS1)+nrow(DS2)))/2*log(2*pi)-0.5*determinant(I.theta)$modulus
+        
+        logE <- 0.5*determinant(DS1)$modulus + 0.5*determinant(DS2)$modulus+ploglik + 
+          (np1+np2-(nrow(DS1)+nrow(DS2)))/2*log(2*pi)-0.5*determinant(I.theta)$modulus  
         attr(logE, "logarithm") <- NULL
         V.theta <- solve(I.theta)
         V.beta <- V.theta[1:np1, 1:np1]
         V.gamma <- V.theta[(np1+1):(np1+np2),(np1+1):(np1+np2)]
-
+        
         fit.gam$Vp <- V.beta; fit.lr$Vp <- V.gamma
-
+        
         res <- list(formula=formula, logE=logE, ploglik=ploglik, loglik=loglik, fit.gam=fit.gam, fit.lr=fit.lr,
           mu=mu, p=p, dispersion=disp, V.beta=V.beta, V.gamma=V.gamma, X1=X1, X2=X2, family=family)
         res
@@ -1843,15 +1858,17 @@ ZIGAM.cts <- function(formula, log.tran = FALSE, family = gaussian(), ...)
 
 # ZIGAM.dis(COZIGAM)
 
+## ZIGAM.dis.R
+
 ZIGAM.dis <- function(formula, maxiter = 20, conv.crit = 1e-3,
-    size = NULL, family = poisson(), ...)
+    size = NULL, family = poisson(), data=list(), ...) 
 {
 
         require(mgcv)
-        split <- interpret.gam(formula)
-        y <- eval(parse(text=split$response))
+        gf <- interpret.gam(formula)
+        y <- eval(parse(text=gf$response), envir=data)
         n <- length(y)
-
+        
         if (is.character(family))
             family <- eval(parse(text = family))
         if (is.function(family))
@@ -1868,6 +1885,7 @@ ZIGAM.dis <- function(formula, maxiter = 20, conv.crit = 1e-3,
             }
         }
         else if(family$family == "binomial") {
+            if(missing(size)) stop("number of trials must be specified for binomial data")
             d.V <- function(mu) 1-2*mu
             d.eta.mu <- function(mu) (2*mu-1)/(mu^2*(1-mu)^2)
             d.f0 <- function(mu) -n*(1-mu)^(n-1)
@@ -1879,31 +1897,31 @@ ZIGAM.dis <- function(formula, maxiter = 20, conv.crit = 1e-3,
             }
         }
         else stop("family not recognized")
-
+    
         variance <- family$variance
         linkinv <- family$linkinv
         linkfun <- family$linkfun
         mu.eta <- family$mu.eta
-
-        fm1 <- as.formula(sub(split$response,"y",deparse(formula)))
-        fm2 <- as.formula(sub(split$response,"psi",deparse(formula)))
-
+    
+        fm1 <- as.formula(sub(gf$response,"y",deparse(formula)))
+        fm2 <- as.formula(sub(gf$response,"psi",deparse(formula)))
+    
         if(family$family == "binomial") mu <- pmin(pmax(y, 0.01), 0.99)
         else mu <- pmax(y, 0.01)
         p <- rep(0.7, n)
         psi <- p*den(y, mu)/(p*den(y, mu)+(1-p)*(y==0))
         norm <- 1; repli <- 0
         while( norm > conv.crit & repli < maxiter) {
-
+    
             psi <- p*den(y, mu)/(p*den(y, mu)+(1-p)*(y==0))
-            G1 <- gam(fm1, family=family, fit=FALSE, ...)
-            G2 <- gam(fm2, family=quasibinomial, fit=FALSE, ...)
+            G1 <- gam(fm1, family=family, fit=FALSE, data=data, ...)
+            G2 <- gam(fm2, family=quasibinomial, fit=FALSE, data=data, ...)
             G1$w <- psi*size
             fit.gam <- gam(G = G1)
             fit.lr <- gam(G = G2)
             b <- coef(fit.gam)
             g <- coef(fit.lr)
-
+    
             mu.old <- mu; p.old <- p
             mu <- fit.gam$fitted
             p <- fit.lr$fitted
@@ -1911,12 +1929,12 @@ ZIGAM.dis <- function(formula, maxiter = 20, conv.crit = 1e-3,
             repli <- repli + 1
             cat("iteration =", repli, "\t", "norm =", norm, "\n")
         }
-
+    
         b1 <- fit.gam$coef; b2 <- fit.lr$coef
         np1 <- length(b1); np2 <- length(b2)
         sp1 <- fit.gam$sp; sp2 <- fit.lr$sp
         mu.eta.val <- mu.eta(fit.gam$linear.predictor)
-
+    
         n.smooth <- length(G1$smooth)
         Lambda1 <- matrix(0, np1, np1)
         Lam <- list(); n.S <- numeric(n.smooth) # penalty matrix
@@ -1942,7 +1960,7 @@ ZIGAM.dis <- function(formula, maxiter = 20, conv.crit = 1e-3,
             last <- G1$smooth[[k]]$last.para
             Lambda1[first:last, first:last] <- Lam[[k]]
         }
-
+    
         n.smooth <- length(G2$smooth)
         Lambda2 <- matrix(0, np2, np2)
         Lam <- list(); n.S <- numeric(n.smooth) # penalty matrix
@@ -1968,15 +1986,15 @@ ZIGAM.dis <- function(formula, maxiter = 20, conv.crit = 1e-3,
             last <- G2$smooth[[k]]$last.para
             Lambda2[first:last, first:last] <- Lam[[k]]
         }
-
+    
         DS1 <- diag(eigen(Lambda1)$values[abs(eigen(Lambda1)$values)>1e-10])
         DS2 <- diag(eigen(Lambda2)$values[abs(eigen(Lambda2)$values)>1e-10])
-
+    
         X1 <- G1$X; X2 <- G2$X
-
+    
         loglik <- loglikfun(y, mu, p) # log-likelihood
         ploglik <- loglik - as.numeric(0.5*t(b1)%*%Lambda1%*%b1) -  as.numeric(0.5*t(b2)%*%Lambda2%*%b2)
-
+    
         # Model selection criterion
         I.theta <- matrix(0, ncol=np1+np2, nrow=np1+np2)
         tau.mu <- -size
@@ -1985,28 +2003,30 @@ ZIGAM.dis <- function(formula, maxiter = 20, conv.crit = 1e-3,
         tau.mu[y==0] <- ( -p*mu.eta.val/disp/variance(mu)/a*(den(0,mu)-size*mu*den(0,mu)*
           (variance(mu)*d.eta.mu(mu)+d.V(mu)/mu.eta.val)*mu.eta.val/variance(mu)+size*(1-p)*mu*d.f0(mu)/a) )[y==0]
         rho.p[y==0] <- ( (1-den(0,mu))/(a^2)*(-a*(1-2*p)-(1-den(0,mu))*p*(1-p)) )[y==0]
-
+    
         G.tau.mu <- diag(as.vector(mu.eta.val*tau.mu))
         G.rho.p <- diag(as.vector(p*(1-p)*rho.p))
-
+    
         I.theta[1:np1,1:np1] <- t(X1) %*% G.tau.mu %*% X1 - Lambda1
         I.theta[(np1+1):(np1+np2),(np1+1):(np1+np2)] <- t(X2) %*% G.rho.p %*% X2 - Lambda2
         I.theta <- -I.theta
-
+    
         logE <- 0.5*determinant(DS1)$modulus + 0.5*determinant(DS2)$modulus+ploglik +
           (np1+np2-(nrow(DS1)+nrow(DS2)))/2*log(2*pi)-0.5*determinant(I.theta)$modulus
         attr(logE, "logarithm") <- NULL
-
+            
         V.theta <- solve(I.theta)
         V.beta <- V.theta[1:np1, 1:np1]
         V.gamma <- V.theta[(np1+1):(np1+np2),(np1+1):(np1+np2)]
-
+        
         fit.gam$Vp <- V.beta; fit.lr$Vp <- V.gamma
-
+            
         res <- list(formula=formula, logE=logE, ploglik=ploglik, loglik=loglik, fit.gam=fit.gam, fit.lr=fit.lr,
             mu=mu, p=p, psi=psi, dispersion=disp, V.beta=V.beta, V.gamma=V.gamma, X1=X1, X2=X2, family=family)
         res
 
 }
+
+
 
 

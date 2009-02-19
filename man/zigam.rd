@@ -6,7 +6,7 @@
 }
 \usage{
 zigam (formula, maxiter = 20, conv.crit = 1e-3,
-    size = NULL, log.tran = FALSE, family, ...)
+    size = NULL, log.tran = FALSE, family, data=list(), ...)
 }
 \arguments{
    \item{formula}{A GAM formula. This is exactly like the formula for a GLM except that smooth terms 
@@ -17,11 +17,12 @@ zigam (formula, maxiter = 20, conv.crit = 1e-3,
    specify a variable by which the smooth should be multiplied.}
    \item{maxiter}{The maximum number of iterations allowed in the EM algorithm in estimating discrete ZIGAMs.}
    \item{conv.crit}{Convergence criterion in the iterative estimation algorithm.}
-   \item{size}{Optional. Must be specified when \code{family} is \code{binomial}.}
+   \item{size}{Number of trials. Must be specified when \code{family} is \code{binomial}.}
    \item{log.tran}{Logical. \code{TRUE} if log-transformation is needed for the response.}
    \item{family}{This is a family object specifying the distribution and link to use in fitting etc. 
    See \code{glm} and \code{family} for more details. Currently support Gaussian/lognormal, Gamma, 
    Poisson and binomial distributions.}
+   \item{data}{A data frame or list containing the model response variable and covariates required by the formula.}
    \item{...}{Additional arguments to be passed to the low level regression fitting functions.}
 }
 

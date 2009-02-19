@@ -5,7 +5,7 @@
    Fit a discrete Generalized Additive Model (GAM) to data and calculate the logarithmic marginal likelihood.
 }
 \usage{
-disgam (formula, size=NULL, family = poisson(), ...)
+disgam (formula, size=NULL, family = poisson(), data=list(), ...)
 }
 \arguments{
    \item{formula}{A GAM formula. This is exactly like the formula for a GLM except that smooth terms
@@ -14,9 +14,10 @@ disgam (formula, size=NULL, family = poisson(), ...)
    where \code{var1}, \code{var2}, etc. are the covariates which the smooth is a function of and
    \code{k} is the dimension of the basis used to represent the smooth term. \code{by} can be used to
    specify a variable by which the smooth should be multiplied.}
-   \item{size}{Optional. Must be specified when \code{family} is \code{binomial}.}
+   \item{size}{Number of trials. Must be specified when \code{family} is \code{binomial}.}
    \item{family}{This is a family object specifying the distribution and link to use in fitting etc.
    See \code{glm} and \code{family} for more details. Currently support Poisson and binomial distributions.}
+   \item{data}{A data frame or list containing the model response variable and covariates required by the formula.}
    \item{...}{Additional arguments to be passed to the low level regression fitting functions.}
 }
 

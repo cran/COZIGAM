@@ -5,8 +5,9 @@
    Fit a COnstrained Zero-Inflated Generalized Additive Model (COZIGAM) to data.
 }
 \usage{
-cozigam (formula, constraint = "proportional", zero.delta = NULL, maxiter = 20, 
-    conv.crit.in = 1e-5, conv.crit.out = 1e-3, size = NULL, log.tran = FALSE, family, ...)
+cozigam (formula, constraint = "proportional", zero.delta = NULL, 
+    maxiter = 20, conv.crit.in = 1e-5, conv.crit.out = 1e-3, size = NULL, 
+    log.tran = FALSE, family, data=list(), ...)
 }
 \arguments{
    \item{formula}{A GAM formula. This is exactly like the formula for a GLM except that smooth terms 
@@ -23,11 +24,12 @@ cozigam (formula, constraint = "proportional", zero.delta = NULL, maxiter = 20,
    \item{maxiter}{The maximum number of iterations allowed in the estimation procedure.}
    \item{conv.crit.in}{Convergence criterion in the inner loop.}
    \item{conv.crit.out}{Convergence criterion in the outer loop.}
-   \item{size}{Optional. Must be specified when \code{family} is \code{binomial}.}
+   \item{size}{Number of trials. Must be specified when \code{family} is \code{binomial}.}
    \item{log.tran}{Logical. \code{TRUE} if log-transformation is needed for the response.}
    \item{family}{This is a family object specifying the distribution and link to use in fitting etc. 
    See \code{glm} and \code{family} for more details. Currently support Gaussian/lognormal, Gamma, 
    Poisson and binomial distributions.}
+   \item{data}{A data frame or list containing the model response variable and covariates required by the formula.}
    \item{...}{Additional arguments to be passed to the low level regression fitting functions.}
 }
 
