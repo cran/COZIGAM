@@ -99,7 +99,8 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
         gp <- eta # g_p(p)-alpha, equivalently alpha=0, delta=1
          
         ## Model setup
-        G <- gam(fm, fit=FALSE, family=family, data=data, ...) 
+        G <- gam(fm, fit=FALSE, family=family, data=data, ...)
+        offs <- G$offset 
         
         np <- ncol(G$X) # length of parameter beta
         n.smooth <- length(G$smooth)
@@ -143,7 +144,7 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                     warning("No observations informative at iteration")
                     break
                 }
-                z1 <- eta[good] + (y - mu)[good]/mu.eta.val[good]
+                z1 <- (eta-offs)[good] + (y - mu)[good]/mu.eta.val[good]
                 z2 <- gp[good] + 1/(p*(1-p))[good]*(z-p)[good] 
 
                 y.c <- c(z1, z2)
@@ -155,7 +156,7 @@ COZIGAM.cts <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                 b.old <- b
                 b <- mgfit$b
                 sp <- mgfit$sp
-                eta <- G$X%*%b
+                eta <- G$X%*%b + offs
                 
                 Eta <- NULL # the design matrix of binomial model
                 bp <- list() # extract the paramters for each smooth term 
@@ -401,6 +402,7 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
         ## Model setup
         psi <- p*den(y, mu)/(p*den(y, mu)+(1-p)*(y==0))
         G <- gam(fm, fit=FALSE, family=family, data=data, ...) 
+        offs <- G$offset
         
         np <- ncol(G$X) # length of parameter beta
         n.smooth <- length(G$smooth) # number of smooth terms
@@ -446,7 +448,7 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                     break
                 }
                 
-                z1 <- eta[good] + (y - mu)[good]/mu.eta.val[good]
+                z1 <- (eta-offs)[good] + (y - mu)[good]/mu.eta.val[good]
                 z2 <- gp[good] + 1/(p*(1-p))[good]*(psi-p)[good] 
 
                 y.c <- c(z1, z2)
@@ -458,7 +460,7 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
                 b.old <- b
                 b <- mgfit$b
                 sp <- mgfit$sp
-                eta <- G$X%*%b
+                eta <- G$X%*%b + offs
                 
                 Eta <- NULL # the design matrix of binomial model
                 bp <- list() # extract the paramters for each smooth term 
@@ -608,7 +610,7 @@ COZIGAM.dis <- function(formula, zero.delta, maxiter = 20, conv.crit.in = 1e-5,
             I.beta <- -t(G$X)%*%(G.tau+W.tau)%*%G$X - t(Xp)%*%(G.rho+W.rho)%*%Xp 
                       - t(G$X)%*%W.tau.rho%*%Xp - t(Xp)%*%W.tau.rho%*%G$X + Lambda
             I.alpha.beta <- t(Xp)%*%(-Ed.rho*p*(1-p)) - (t(Xp)%*%W.rho+t(G$X)%*%W.tau.rho)%*%rep.int(1,n) 
-            I.delta.beta <- -t(Xp)%*%G.rho%*%Eta - (t(Xp)%*%W.rho+t(G$X)%*%W.tau.rho)%*%Eta
+            I.delta.beta <- -t(Xp)%*%G.rho%*%Eta - (t(Xp)%*%W.rho+t(G$X)%*%W.tau.rho)%*%Eta - P
              
             n.delta <- sum(!zdelta) # number of non-zero delta
             n.theta <- 1 + n.delta + length(b)
@@ -713,6 +715,7 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
          
         ## Model setup
         G <- gam(fm, fit=FALSE, family=family, data=data, ...)
+        offs <- G$offset
 
         ## Begin outer loop: iteratively update beta and alpha & delta
         rep.out <- 1; norm.out <- 1
@@ -736,7 +739,7 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
                     warning("No observations informative at iteration")
                     break
                 }
-                z1 <- eta1[good] + (y - mu)[good]/mu.eta.val[good]
+                z1 <- (eta1-offs)[good] + (y - mu)[good]/mu.eta.val[good]
                 z2 <- eta2[good] + 1/(p*(1-p))[good]*(z-p)[good] 
 
                 y.c <- c(z1, z2)
@@ -748,7 +751,8 @@ PCOZIGAM.cts <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
                 b.old <- b
                 b <- mgfit$b
                 sp <- mgfit$sp
-                eta1 <- G$X%*%b; eta2 <- delta*eta1
+                eta1 <- G$X%*%b + offs 
+                eta2 <- delta*eta1
                 mu <- linkinv(eta1)
                 p <- .Call("logit_linkinv", eta2+alpha, PACKAGE = "stats")
                 norm.in <- sum((b-b.old)^2)
@@ -947,6 +951,7 @@ PCOZIGAM.dis <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
         ## Model setup
         psi <- p*den(y, mu)/(p*den(y, mu)+(1-p)*(y==0))
         G <- gam(fm, fit=FALSE, family=family, data=data, ...)
+        offs <- G$offset
         
         ## Begin outer loop: EM algorithm
         rep.out <- 1; norm.out <- 1
@@ -971,7 +976,7 @@ PCOZIGAM.dis <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
                     warning("No observations informative at iteration")
                     break
                 }
-                z1 <- eta1[good] + (y - mu)[good]/mu.eta.val[good]
+                z1 <- (eta1-offs)[good] + (y - mu)[good]/mu.eta.val[good]
                 z2 <- eta2[good] + 1/(p*(1-p))[good]*(psi-p)[good] 
 
                 y.c <- c(z1, z2)
@@ -983,7 +988,8 @@ PCOZIGAM.dis <- function(formula, maxiter = 20, conv.crit.in = 1e-5,
                 b.old <- b
                 b <- mgfit$b
                 sp <- mgfit$sp
-                eta1 <- G$X%*%b; eta2 <- delta*eta1
+                eta1 <- G$X%*%b + offs 
+                eta2 <- delta*eta1
                 mu <- linkinv(eta1)
                 p <- .Call("logit_linkinv", eta2+alpha, PACKAGE = "stats")
                 norm.in <- sum((b-b.old)^2)

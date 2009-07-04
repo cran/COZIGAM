@@ -10,8 +10,10 @@ Hai Liu and Kung-Sik Chan
 }
 \usage{data(alaska)}
 \format{A data frame with the following 2 variables.
-   \item{lat}{A numeric vector: latitude}
-   \item{lon}{A numeric vector: longitude}
+\describe{
+   \item{\code{lat}}{A numeric vector: latitude}
+   \item{\code{lon}}{A numeric vector: longitude}
+}
 }
 \details{
 This data frame can be used to draw the coastline of the Alaska peninsula. See example below.
