@@ -45,12 +45,11 @@ corresponding s.e.s). The linear predictor returned termwise will not include th
 Hai Liu and Kung-Sik Chan
 }
 \references{
-Liu, H and Chan, K.S. (2008) Constrained Generalized Additive Model with Zero-Inflated Data. 
-Technical Report 388, Department of Statisics and Actuarial Science, The Unversity of Iowa. 
-\url{http://www.stat.uiowa.edu/techrep/tr388.pdf} 
+Liu, H and Chan, K.S. (2010)  Introducing COZIGAM: An R Package for Unconstrained and Constrained Zero-Inflated Generalized Additive Model Analysis. Journal of Statistical Software, 35(11), 1-26.
+\url{http://www.jstatsoft.org/v35/i11/}
 
 
-Louis, T. A. (1982) Finding the Observed Information Matrix When Using EM Algorithm. J. R. Statist. Soc. B, 44, 226-233
+Louis, T. A. (1982) Finding the Observed Information Matrix when Using EM Algorithm. J. R. Statist. Soc. B, 44, 226-233
 }
 \seealso{
    \code{\link{cozigam}}, \code{\link{plot.cozigam}}

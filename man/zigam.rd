@@ -37,7 +37,7 @@ non-zero-inflated responses and the zero-inflation process are assumed to be ind
 The mean of the non-zero-inflated exponential family distribution is assumed to be
  \deqn{g(\mu_i) = s_1(x_i),} and the non-zero-inflation probability is linked to the covariates by
  \deqn{logit(p_i) = s_2(x_i),} where \eqn{s_1} and \eqn{s_2} are two possibly distinct smooth functions to
-be estimated nonparametrically by Generalized Additive Models. See Liu and Chan (2008) for more detail.
+be estimated nonparametrically by Generalized Additive Models. See Liu and Chan (2010) for more detail.
 }
 
 \value{
@@ -65,9 +65,9 @@ Hai Liu and Kung-Sik Chan
 }
 
 \references{
-Liu, H and Chan, K.S. (2008) Constrained Generalized Additive Model with Zero-Inflated Data. 
-Technical Report 388, Department of Statistics and Actuarial Science, The University of Iowa.
-\url{http://www.stat.uiowa.edu/techrep/tr388.pdf}}
+Liu, H and Chan, K.S. (2010)  Introducing COZIGAM: An R Package for Unconstrained and Constrained Zero-Inflated Generalized Additive Model Analysis. Journal of Statistical Software, 35(11), 1-26.
+\url{http://www.jstatsoft.org/v35/i11/}
+}
 \seealso{
    \code{\link{cozigam}}
 }

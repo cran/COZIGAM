@@ -12,8 +12,8 @@ plotting, prediction and selection.}
 \tabular{ll}{
 Package: \tab COZIGAM\cr
 Type: \tab Package\cr
-Version: \tab 2.0-2\cr
-Date: \tab 2009-7-4\cr
+Version: \tab 2.0-3\cr
+Date: \tab 2010-7-23\cr
 License:\tab GPL version 2 or newer\cr
 }
 \tabular{ll}{
@@ -49,6 +49,6 @@ zigam        \tab       Fitting (Unconstrained) Zero-Inflated Generalized Additi
 }
 }
 \author{Hai Liu and Kung-Sik Chan;
-Maintainer: Hai Liu <hailau@gmail.com>
+Maintainer: Hai Liu <liuhai@iupui.edu>
 }
 \keyword{ package }

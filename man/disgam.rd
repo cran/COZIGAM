@@ -27,7 +27,7 @@ The model selection approach
 can be used to determine whether a zero-inflated model is needed. To do that, we can fit both a ZIGAM and a
 regular GAM to the data, and then compare the logarithmic marginal likelihoods from these two models. Higher
 logarithmic marginal likelihood from the ZIGAM would indicate that there is zero-inflation in the count data.
-Otherwise, we can simply fit a regular GAM instead of a ZIGAM. See Liu and Chan (2008) for more detail.
+Otherwise, we can simply fit a regular GAM instead of a ZIGAM. See Liu and Chan (2010) for more detail.
 }
 
 \value{
@@ -46,9 +46,9 @@ Hai Liu and Kung-Sik Chan
 }
 
 \references{
-Liu, H and Chan, K.S. (2008) Constrained Generalized Additive Model with Zero-Inflated Data.
-Technical Report 388, Department of Statistics and Actuarial Science, The University of Iowa.
-\url{http://www.stat.uiowa.edu/techrep/tr388.pdf}}
+Liu, H and Chan, K.S. (2010)  Introducing COZIGAM: An R Package for Unconstrained and Constrained Zero-Inflated Generalized Additive Model Analysis. Journal of Statistical Software, 35(11), 1-26.
+\url{http://www.jstatsoft.org/v35/i11/}
+}
 \seealso{
    \code{\link{zigam}}
 }
